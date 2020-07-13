@@ -43,6 +43,8 @@ typedef struct physics_info {
 	matrix	I_body_inv;		// inverse moment of inertia tensor (used to calculate rotational effects)
 
 	float		rotdamp;			//rotational velocity damping
+	float		rotdamp_multiplier_at_zero_vel;				// Asteroth - for speed variable rotdamp, 0-1 proportion of rotdamp experienced at zero velocity
+	float		rotdamp_multiplier_at_max_vel;					// Asteroth - for speed variable rotdamp, 0-1 proportion of rotdamp experienced at maximum velocity
 	float		side_slip_time_const;	// time const for achieving desired velocity in the local sideways direction
 												//   value should be zero for no sideslip and increase depending on desired slip
 
@@ -81,6 +83,7 @@ typedef struct physics_info {
 	float		speed;					// Yes, this can be derived from velocity, but that's expensive!
 	float		fspeed;					//	Speed in the forward direction.
 	float		heading;
+	float	current_rotdamp_multiplier;		// Asteroth - for speed variable rot damp
 	vec3d	prev_fvec;				//	Used in AI for momentum.
 	matrix	last_rotmat;			//	Used for moving two objects together and for editor.
 

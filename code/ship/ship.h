@@ -1001,6 +1001,8 @@ public:
 	float		density;								// density of the ship in g/cm^3 (water  = 1)
 	float		damp;									// drag
 	float		rotdamp;								// rotational drag
+	float	rotdamp_multiplier_at_zero_vel;				// Asteroth - for speed variable rotdamp, 0-1 proportion of rotdamp experienced at zero velocity
+	float	rotdamp_multiplier_at_max_vel;					// Asteroth - for speed variable rotdamp, 0-1 proportion of rotdamp experienced at maximum velocity
 	float		delta_bank_const;
 	vec3d	max_vel;								//	max velocity of the ship in the linear directions -- read from ships.tbl
 	vec3d	min_vel;								//	min velocity of the ship in the linear directions -- read from ships.tbl

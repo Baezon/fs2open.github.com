@@ -54,6 +54,10 @@ void physics_init( physics_info * pi )
 	pi->side_slip_time_const = 0.05f;
 	pi->rotdamp = 0.1f;
 
+	pi->current_rotdamp_multiplier = 1.0f;
+	pi->rotdamp_multiplier_at_max_vel = 2.0f;
+	pi->rotdamp_multiplier_at_zero_vel = 0.5f;
+
 	pi->max_vel.xyz.x = 100.0f;		//sideways
 	pi->max_vel.xyz.y = 100.0f;		//up/down
 	pi->max_vel.xyz.z = 100.0f;		//forward
@@ -166,16 +170,16 @@ void physics_sim_rot(matrix * orient, physics_info * pi, float sim_time )
 	if ( pi->flags & PF_IN_SHOCKWAVE ) {
 		if ( timestamp_elapsed(pi->shockwave_decay) ) {
 			pi->flags &= ~PF_IN_SHOCKWAVE;
-			rotdamp = pi->rotdamp;
+			rotdamp = pi->rotdamp * pi->current_rotdamp_multiplier;
 		} else {
  			shock_fraction_time_left = timestamp_until( pi->shockwave_decay ) / (float) SW_BLAST_DURATION;
-			rotdamp = pi->rotdamp + pi->rotdamp * (SW_ROT_FACTOR - 1) * shock_fraction_time_left;
+			rotdamp = pi->rotdamp * pi->current_rotdamp_multiplier + pi->rotdamp * (SW_ROT_FACTOR - 1) * shock_fraction_time_left;
 			shock_amplitude = pi->shockwave_shake_amp * shock_fraction_time_left;
 		}
 	} else if ( pi->flags & PF_NO_DAMP ) {
 		rotdamp = 0.0f;
 	} else {
-		rotdamp = pi->rotdamp;
+		rotdamp = pi->rotdamp * pi->current_rotdamp_multiplier;
 	}
 
 	// Do rotational physics with given damping
@@ -382,6 +386,9 @@ void physics_sim(vec3d* position, matrix* orient, physics_info* pi, float sim_ti
 
 		pi->speed = vm_vec_mag(&pi->vel);							//	Note, cannot use quick version, causes cumulative error, increasing speed.
 		pi->fspeed = vm_vec_dot(&orient->vec.fvec, &pi->vel);		// instead of vector magnitude -- use only forward vector since we are only interested in forward velocity
+
+		float speed_proportion = pi->speed / (pi->max_vel.xyz.z + 0.01f);
+		pi->current_rotdamp_multiplier = speed_proportion * (pi->rotdamp_multiplier_at_max_vel - 1) + (pi->rotdamp_multiplier_at_zero_vel);
 	}
 
 }
