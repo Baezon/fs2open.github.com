@@ -819,8 +819,6 @@ void ship_info::clone(const ship_info& other)
 	density = other.density;
 	damp = other.damp;
 	rotdamp = other.rotdamp;
-	rotdamp_mult_max_vel = other.rotdamp_mult_max_vel;
-	rotdamp_mult_zero_vel = other.rotdamp_mult_zero_vel;
 	delta_bank_const = other.delta_bank_const;
 	max_vel = other.max_vel;
 	min_vel = other.min_vel;
@@ -832,6 +830,10 @@ void ship_info::clone(const ship_info& other)
 	forward_decel = other.forward_decel;
 	slide_accel = other.slide_accel;
 	slide_decel = other.slide_decel;
+	rotdamp_mult_max_vel = other.rotdamp_mult_max_vel;
+	rotdamp_mult_zero_vel = other.rotdamp_mult_zero_vel;
+	rotvel_mult_max_vel = other.rotvel_mult_max_vel;
+	rotvel_mult_zero_vel = other.rotvel_mult_zero_vel;
 
 	warpin_params_index = other.warpin_params_index;
 	warpout_params_index = other.warpout_params_index;
@@ -1134,8 +1136,6 @@ void ship_info::move(ship_info&& other)
 	density = other.density;
 	damp = other.damp;
 	rotdamp = other.rotdamp;
-	rotdamp_mult_max_vel = other.rotdamp_mult_max_vel;
-	rotdamp_mult_zero_vel = other.rotdamp_mult_zero_vel;
 
 	delta_bank_const = other.delta_bank_const;
 	std::swap(max_vel, other.max_vel);
@@ -1148,6 +1148,10 @@ void ship_info::move(ship_info&& other)
 	forward_decel = other.forward_decel;
 	slide_accel = other.slide_accel;
 	slide_decel = other.slide_decel;
+	rotdamp_mult_max_vel = other.rotdamp_mult_max_vel;
+	rotdamp_mult_zero_vel = other.rotdamp_mult_zero_vel;
+	rotvel_mult_max_vel = other.rotvel_mult_max_vel;
+	rotvel_mult_zero_vel = other.rotvel_mult_zero_vel;
 
 	warpin_params_index = other.warpin_params_index;
 	warpout_params_index = other.warpout_params_index;
@@ -1456,8 +1460,6 @@ ship_info::ship_info()
 	density = 1.0f;
 	damp = 0.0f;
 	rotdamp = 0.0f;
-	rotdamp_mult_max_vel = 1.0f;
-	rotdamp_mult_zero_vel = 1.0f;
 	delta_bank_const = DEFAULT_DELTA_BANK_CONST;
 	vm_vec_zero(&max_vel);
 	vm_vec_zero(&min_vel);
@@ -1469,6 +1471,10 @@ ship_info::ship_info()
 	forward_decel = 0.0f;
 	slide_accel = 0.0f;
 	slide_decel = 0.0f;
+	rotdamp_mult_max_vel = 1.0f;
+	rotdamp_mult_zero_vel = 1.0f;
+	rotvel_mult_max_vel = 1.0f;
+	rotvel_mult_zero_vel = 1.0f;
 
 	warpin_params_index = -1;
 	warpout_params_index = -1;
@@ -2949,28 +2955,6 @@ static void parse_ship_values(ship_info* sip, const bool is_template, const bool
 		stuff_float( &(sip->rotdamp) );
 	diag_printf ("Ship rotdamp -- %7.3f\n", sip->rotdamp);
 
-	if (optional_string("$Rotdamp Multiplier at Max Velocity:"))
-	{
-		stuff_float(&(sip->rotdamp_mult_max_vel));
-		diag_printf("Ship rotdamp multiplier at max velocity -- %7.3f\n", sip->rotdamp_mult_max_vel);
-		if (sip->rotdamp_mult_max_vel < 0.0f) {
-			Warning(LOCATION, "Rotdamp multiplier at max velocity (%f) cannot be negative. Clamped to 0.", sip->rotdamp_mult_max_vel);
-			sip->rotdamp_mult_max_vel = 0.0f;
-		}
-	}
-	//sip->rotdamp_mult_max_vel = 2.0f;
-
-	if (optional_string("$Rotdamp Multiplier at Zero Velocity:"))
-	{
-		stuff_float(&(sip->rotdamp_mult_zero_vel));
-		diag_printf("Ship rotdamp multiplier at zero velocity -- %7.3f\n", sip->rotdamp_mult_zero_vel);
-		if (sip->rotdamp_mult_zero_vel < 0.0f) {
-			Warning(LOCATION, "Rotdamp multiplier at zero velocity (%f) cannot be negative. Clamped to 0.", sip->rotdamp_mult_zero_vel);
-			sip->rotdamp_mult_zero_vel = 0.0f;
-		}
-	}
-	//sip->rotdamp_mult_zero_vel = 0.5f;
-
 	if(optional_string("$Banking Constant:"))
 		stuff_float( &(sip->delta_bank_const) );
 	diag_printf ("%s '%s' delta_bank_const -- %7.3f\n", info_type_name, sip->name, sip->delta_bank_const);
@@ -3025,6 +3009,46 @@ static void parse_ship_values(ship_info* sip, const bool is_template, const bool
 	if(optional_string("$Glide:"))
 	{
 		stuff_boolean(&sip->can_glide);
+	}
+
+	if (optional_string("$Rotdamp Multiplier at Max Velocity:"))
+	{
+		stuff_float(&(sip->rotdamp_mult_max_vel));
+		diag_printf("Ship rotdamp multiplier at max velocity -- %7.3f\n", sip->rotdamp_mult_max_vel);
+		if (sip->rotdamp_mult_max_vel < 0.0f) {
+			Warning(LOCATION, "Rotdamp multiplier at max velocity (%f) cannot be negative. Reset to 1.", sip->rotdamp_mult_max_vel);
+			sip->rotdamp_mult_max_vel = 1.0f;
+		}
+	}
+
+	if (optional_string("$Rotdamp Multiplier at Zero Velocity:"))
+	{
+		stuff_float(&(sip->rotdamp_mult_zero_vel));
+		diag_printf("Ship rotdamp multiplier at zero velocity -- %7.3f\n", sip->rotdamp_mult_zero_vel);
+		if (sip->rotdamp_mult_zero_vel < 0.0f) {
+			Warning(LOCATION, "Rotdamp multiplier at zero velocity (%f) cannot be negative. Reset to 1.", sip->rotdamp_mult_zero_vel);
+			sip->rotdamp_mult_zero_vel = 1.0f;
+		}
+	}
+
+	if (optional_string("$Rotational Velocity Multiplier at Max Velocity:"))
+	{
+		stuff_float(&(sip->rotvel_mult_max_vel));
+		diag_printf("Ship rotdamp multiplier at max velocity -- %7.3f\n", sip->rotvel_mult_max_vel);
+		if (sip->rotvel_mult_max_vel < 0.0f) {
+			Warning(LOCATION, "Rotvel multiplier at max velocity (%f) cannot be negative. Reset to 1.", sip->rotvel_mult_max_vel);
+			sip->rotvel_mult_max_vel = 1.0f;
+		}
+	}
+
+	if (optional_string("$Rotational Velocity Multiplier at Zero Velocity:"))
+	{
+		stuff_float(&(sip->rotvel_mult_zero_vel));
+		diag_printf("Ship rotdamp multiplier at zero velocity -- %7.3f\n", sip->rotvel_mult_zero_vel);
+		if (sip->rotvel_mult_zero_vel < 0.0f) {
+			Warning(LOCATION, "Rotvel multiplier at zero velocity (%f) cannot be negative. Reset to 1.", sip->rotvel_mult_zero_vel);
+			sip->rotvel_mult_zero_vel = 1.0f;
+		}
 	}
 
 	if(sip->can_glide == true)
@@ -5711,6 +5735,12 @@ void physics_ship_init(object *objp)
 	pi->rotdamp_base = log(sinfo->rotdamp_mult_zero_vel);
 	if (sinfo->max_vel.xyz.z != 0.0f)
 		pi->rotdamp_mult_accel = (log(sinfo->rotdamp_mult_max_vel) - pi->rotdamp_base) / sinfo->max_vel.xyz.z;
+
+	// Asteroth - for variable speed rotvel
+	// Explanation same as above
+	pi->rotvel_base = log(sinfo->rotvel_mult_zero_vel);
+	if (sinfo->max_vel.xyz.z != 0.0f)
+		pi->rotvel_mult_accel = (log(sinfo->rotvel_mult_max_vel) - pi->rotvel_base) / sinfo->max_vel.xyz.z;
 
 	if ( (pi->max_vel.xyz.x > 0.000001f) || (pi->max_vel.xyz.y > 0.000001f) )
 		pi->flags |= PF_SLIDE_ENABLED;
@@ -10251,6 +10281,8 @@ void change_ship_type(int n, int ship_type, int by_sexp)
 		Objects[sp->objnum].phys_info.speed = ph_inf.speed;
 		Objects[sp->objnum].phys_info.vel = ph_inf.vel;
 		Objects[sp->objnum].phys_info.vert_thrust = ph_inf.vert_thrust;
+		Objects[sp->objnum].phys_info.current_rotdamp_multiplier = ph_inf.current_rotdamp_multiplier;
+		Objects[sp->objnum].phys_info.current_rotvel_multiplier = ph_inf.current_rotvel_multiplier;
 	}
 
 	ship_set_new_ai_class(sp, sip->ai_class);

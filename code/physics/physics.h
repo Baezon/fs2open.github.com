@@ -53,6 +53,12 @@ typedef struct physics_info {
 	float		rotdamp_mult_accel;					// Asteroth - for speed variable rotdamp, THIS IS TRANSLATED INTO LOG SPACE!! 
 													//		Equivalent to ship info's rotdamp_mult_max_vel, look there for the more straightforward value
 
+	// Asteroth - Explanation is identical to the above, but for rotvel
+	float		rotvel_base;						// Asteroth - for speed variable rotvel, THIS IS TRANSLATED INTO LOG SPACE!! 
+													//		Equivalent to ship info's rotvel_mult_zero_vel, look there for the more straightforward value
+	float		rotvel_mult_accel;					// Asteroth - for speed variable rotvel, THIS IS TRANSLATED INTO LOG SPACE!! 
+													//		Equivalent to ship info's rotvel_mult_max_vel, look there for the more straightforward value
+
 
 	float		side_slip_time_const;	// time const for achieving desired velocity in the local sideways direction
 												//   value should be zero for no sideslip and increase depending on desired slip
@@ -92,7 +98,8 @@ typedef struct physics_info {
 	float		speed;					// Yes, this can be derived from velocity, but that's expensive!
 	float		fspeed;					//	Speed in the forward direction.
 	float		heading;
-	float	current_rotdamp_multiplier;		// Asteroth - for speed variable rot damp
+	float	current_rotdamp_multiplier;		// Asteroth - for speed variable rotdamp
+	float	current_rotvel_multiplier;		// Asteroth - for speed variable rotvel
 	vec3d	prev_fvec;				//	Used in AI for momentum.
 	matrix	last_rotmat;			//	Used for moving two objects together and for editor.
 

@@ -168,6 +168,9 @@ void physics_sim_rot(matrix * orient, physics_info * pi, float sim_time )
 	// Asteroth - for variable speed rotdamp
 	pi->current_rotdamp_multiplier = exp(pi->rotdamp_base + pi->speed * pi->rotdamp_mult_accel);
 
+	// Asteroth - for variable speed rotvel
+	pi->current_rotvel_multiplier = exp(pi->rotvel_base + pi->speed * pi->rotvel_mult_accel);
+
 	// Handle special case of shockwave
 	shock_amplitude = 0.0f;
 	if ( pi->flags & PF_IN_SHOCKWAVE ) {
@@ -463,10 +466,14 @@ void physics_read_flying_controls( matrix * orient, physics_info * pi, control_i
 		else if (ci->forward < -1.0f ) ci->forward = -1.0f;
 	}
 
+	// Asteroth - for speed variable rotvel
+	vec3d adjusted_max_rotvel = pi->max_rotvel;
+	vm_vec_scale(&adjusted_max_rotvel, pi->current_rotvel_multiplier);
+
 	if (!Flight_controls_follow_eyepoint_orientation || (Player_obj == NULL) || (Player_obj->type != OBJ_SHIP)) {
 		// Default behavior; eyepoint orientation has no effect on controls
-		pi->desired_rotvel.xyz.x = ci->pitch * pi->max_rotvel.xyz.x;
-		pi->desired_rotvel.xyz.y = ci->heading * pi->max_rotvel.xyz.y;
+		pi->desired_rotvel.xyz.x = ci->pitch * adjusted_max_rotvel.xyz.x;
+		pi->desired_rotvel.xyz.y = ci->heading * adjusted_max_rotvel.xyz.y;
 	} else {
 		// Optional behavior; pitch and yaw are always relative to the eyepoint
 		// orientation (excluding slew)
@@ -478,8 +485,8 @@ void physics_read_flying_controls( matrix * orient, physics_info * pi, control_i
 		vm_copy_transpose(&tmp_mat, &Player_obj->orient);
 		vm_matrix_x_matrix(&rotvelmat, &tmp_mat, &eyemat);
 
-		vm_vec_rotate(&new_rotvel, &pi->max_rotvel, &rotvelmat);
-		vm_vec_unrotate(&tmp_vec, &pi->max_rotvel, &rotvelmat);
+		vm_vec_rotate(&new_rotvel, &adjusted_max_rotvel, &rotvelmat);
+		vm_vec_unrotate(&tmp_vec, &adjusted_max_rotvel, &rotvelmat);
 		new_rotvel.xyz.x = tmp_vec.xyz.x;
 
 		new_rotvel.xyz.x = ci->pitch * new_rotvel.xyz.x;

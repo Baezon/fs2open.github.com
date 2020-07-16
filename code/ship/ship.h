@@ -1003,7 +1003,10 @@ public:
 	float		rotdamp;								// rotational drag
 	float	rotdamp_mult_zero_vel;					// Asteroth - for speed variable rotdamp, proportion of rotdamp the ship feels @ zero velocity
 	float	rotdamp_mult_max_vel;					// Asteroth - for speed variable rotdamp, proportion of rotdamp the ship feels @ maximum forward z velocity 
-													// Note the multiplier can still exceed this value with overclocked engines and afterburners
+													//		Note the multiplier can still exceed this value with overclocked engines and afterburners
+	float	rotvel_mult_zero_vel;					// Asteroth - for speed variable rotvel, proportion of rotvel the ship feels @ zero velocity
+	float	rotvel_mult_max_vel;					// Asteroth - for speed variable rotvel, proportion of rotvel the ship feels @ maximum forward z velocity 
+													//		Note the multiplier can still exceed this value with overclocked engines and afterburners
 	float		delta_bank_const;
 	vec3d	max_vel;								//	max velocity of the ship in the linear directions -- read from ships.tbl
 	vec3d	min_vel;								//	min velocity of the ship in the linear directions -- read from ships.tbl
