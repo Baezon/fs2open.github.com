@@ -43,8 +43,17 @@ typedef struct physics_info {
 	matrix	I_body_inv;		// inverse moment of inertia tensor (used to calculate rotational effects)
 
 	float		rotdamp;			//rotational velocity damping
-	float		rotdamp_multiplier_at_zero_vel;				// Asteroth - for speed variable rotdamp, 0-1 proportion of rotdamp experienced at zero velocity
-	float		rotdamp_multiplier_at_max_vel;					// Asteroth - for speed variable rotdamp, 0-1 proportion of rotdamp experienced at maximum velocity
+
+	// Asteroth - These two values when exponentiated in physics_sim_rot will get you the original rotdamp_mult_zero_vel in ship info for rotdamp_base 
+	//		and rotdamp_mult_max_vel will be 'intersected' from the slope provided by rotdamp_mult_accel plus base's offset. But since they get exponentiated
+	//		you get a much 'nicer' exponential curve in between those two values. Note that the function will not stop at whatever the modder defined at max_vel,
+	//		and will continue to magnify for afterburners and overclocking
+	float		rotdamp_base;						// Asteroth - for speed variable rotdamp, THIS IS TRANSLATED INTO LOG SPACE!! 
+													//		Equivalent to ship info's rotdamp_mult_zero_vel, look there for the more straightforward value
+	float		rotdamp_mult_accel;					// Asteroth - for speed variable rotdamp, THIS IS TRANSLATED INTO LOG SPACE!! 
+													//		Equivalent to ship info's rotdamp_mult_max_vel, look there for the more straightforward value
+
+
 	float		side_slip_time_const;	// time const for achieving desired velocity in the local sideways direction
 												//   value should be zero for no sideslip and increase depending on desired slip
 

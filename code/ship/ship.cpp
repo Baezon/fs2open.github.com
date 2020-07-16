@@ -819,6 +819,8 @@ void ship_info::clone(const ship_info& other)
 	density = other.density;
 	damp = other.damp;
 	rotdamp = other.rotdamp;
+	rotdamp_mult_max_vel = other.rotdamp_mult_max_vel;
+	rotdamp_mult_zero_vel = other.rotdamp_mult_zero_vel;
 	delta_bank_const = other.delta_bank_const;
 	max_vel = other.max_vel;
 	min_vel = other.min_vel;
@@ -1132,6 +1134,9 @@ void ship_info::move(ship_info&& other)
 	density = other.density;
 	damp = other.damp;
 	rotdamp = other.rotdamp;
+	rotdamp_mult_max_vel = other.rotdamp_mult_max_vel;
+	rotdamp_mult_zero_vel = other.rotdamp_mult_zero_vel;
+
 	delta_bank_const = other.delta_bank_const;
 	std::swap(max_vel, other.max_vel);
 	std::swap(min_vel, other.min_vel);
@@ -1451,6 +1456,8 @@ ship_info::ship_info()
 	density = 1.0f;
 	damp = 0.0f;
 	rotdamp = 0.0f;
+	rotdamp_mult_max_vel = 1.0f;
+	rotdamp_mult_zero_vel = 1.0f;
 	delta_bank_const = DEFAULT_DELTA_BANK_CONST;
 	vm_vec_zero(&max_vel);
 	vm_vec_zero(&min_vel);
@@ -2941,6 +2948,28 @@ static void parse_ship_values(ship_info* sip, const bool is_template, const bool
 	if(optional_string("$Rotdamp:"))
 		stuff_float( &(sip->rotdamp) );
 	diag_printf ("Ship rotdamp -- %7.3f\n", sip->rotdamp);
+
+	if (optional_string("$Rotdamp Multiplier at Max Velocity:"))
+	{
+		stuff_float(&(sip->rotdamp_mult_max_vel));
+		diag_printf("Ship rotdamp multiplier at max velocity -- %7.3f\n", sip->rotdamp_mult_max_vel);
+		if (sip->rotdamp_mult_max_vel < 0.0f) {
+			Warning(LOCATION, "Rotdamp multiplier at max velocity (%f) cannot be negative. Clamped to 0.", sip->rotdamp_mult_max_vel);
+			sip->rotdamp_mult_max_vel = 0.0f;
+		}
+	}
+	//sip->rotdamp_mult_max_vel = 2.0f;
+
+	if (optional_string("$Rotdamp Multiplier at Zero Velocity:"))
+	{
+		stuff_float(&(sip->rotdamp_mult_zero_vel));
+		diag_printf("Ship rotdamp multiplier at zero velocity -- %7.3f\n", sip->rotdamp_mult_zero_vel);
+		if (sip->rotdamp_mult_zero_vel < 0.0f) {
+			Warning(LOCATION, "Rotdamp multiplier at zero velocity (%f) cannot be negative. Clamped to 0.", sip->rotdamp_mult_zero_vel);
+			sip->rotdamp_mult_zero_vel = 0.0f;
+		}
+	}
+	//sip->rotdamp_mult_zero_vel = 0.5f;
 
 	if(optional_string("$Banking Constant:"))
 		stuff_float( &(sip->delta_bank_const) );
@@ -5675,6 +5704,13 @@ void physics_ship_init(object *objp)
 	pi->forward_decel_time_const=sinfo->forward_decel;
 	pi->slide_accel_time_const=sinfo->slide_accel;
 	pi->slide_decel_time_const=sinfo->slide_decel;
+
+	// Asteroth - for variable speed rotdamp
+	// the more complicated rotdamp_base and rotdamp_mult_accel have to be calculated here
+	// so that it can avoid asking what the pi's maxvel is later (since that can change during runtime)
+	pi->rotdamp_base = log(sinfo->rotdamp_mult_zero_vel);
+	if (sinfo->max_vel.xyz.z != 0.0f)
+		pi->rotdamp_mult_accel = (log(sinfo->rotdamp_mult_max_vel) - pi->rotdamp_base) / sinfo->max_vel.xyz.z;
 
 	if ( (pi->max_vel.xyz.x > 0.000001f) || (pi->max_vel.xyz.y > 0.000001f) )
 		pi->flags |= PF_SLIDE_ENABLED;

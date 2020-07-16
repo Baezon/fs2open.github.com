@@ -55,8 +55,8 @@ void physics_init( physics_info * pi )
 	pi->rotdamp = 0.1f;
 
 	pi->current_rotdamp_multiplier = 1.0f;
-	pi->rotdamp_multiplier_at_max_vel = 2.0f;
-	pi->rotdamp_multiplier_at_zero_vel = 0.5f;
+	pi->rotdamp_mult_accel = 0.0f;
+	pi->rotdamp_base = 0.0f;
 
 	pi->max_vel.xyz.x = 100.0f;		//sideways
 	pi->max_vel.xyz.y = 100.0f;		//up/down
@@ -164,6 +164,9 @@ void physics_sim_rot(matrix * orient, physics_info * pi, float sim_time )
 	Assert(is_valid_matrix(orient));
 	Assert(is_valid_vec(&pi->rotvel));
 	Assert(is_valid_vec(&pi->desired_rotvel));
+
+	// Asteroth - for variable speed rotdamp
+	pi->current_rotdamp_multiplier = exp(pi->rotdamp_base + pi->speed * pi->rotdamp_mult_accel);
 
 	// Handle special case of shockwave
 	shock_amplitude = 0.0f;
@@ -386,9 +389,6 @@ void physics_sim(vec3d* position, matrix* orient, physics_info* pi, float sim_ti
 
 		pi->speed = vm_vec_mag(&pi->vel);							//	Note, cannot use quick version, causes cumulative error, increasing speed.
 		pi->fspeed = vm_vec_dot(&orient->vec.fvec, &pi->vel);		// instead of vector magnitude -- use only forward vector since we are only interested in forward velocity
-
-		float speed_proportion = pi->speed / (pi->max_vel.xyz.z + 0.01f);
-		pi->current_rotdamp_multiplier = speed_proportion * (pi->rotdamp_multiplier_at_max_vel - 1) + (pi->rotdamp_multiplier_at_zero_vel);
 	}
 
 }
