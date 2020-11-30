@@ -911,6 +911,7 @@ void ship_info::clone(const ship_info& other)
 	death_roll_yrotation_cap = other.death_roll_yrotation_cap;
 	death_roll_zrotation_cap = other.death_roll_zrotation_cap;
 	death_roll_base_time = other.death_roll_base_time;
+	death_roll_time_shorten_mult = other.death_roll_time_shorten_mult;
 	death_fx_count = other.death_fx_count;
 	shockwave_count = other.shockwave_count;
 	explosion_bitmap_anims = other.explosion_bitmap_anims;
@@ -1242,6 +1243,7 @@ void ship_info::move(ship_info&& other)
 	death_roll_yrotation_cap = other.death_roll_yrotation_cap;
 	death_roll_zrotation_cap = other.death_roll_zrotation_cap;
 	death_roll_base_time = other.death_roll_base_time;
+	death_roll_time_shorten_mult = other.death_roll_time_shorten_mult;
 	death_fx_count = other.death_fx_count;
 	shockwave_count = other.shockwave_count;
 	std::swap(explosion_bitmap_anims, other.explosion_bitmap_anims);
@@ -1589,6 +1591,7 @@ ship_info::ship_info()
 	death_roll_yrotation_cap = 0.75f*DEATHROLL_ROTVEL_CAP;
 	death_roll_zrotation_cap = 0.75f*DEATHROLL_ROTVEL_CAP;
 	death_roll_base_time = 3000;
+	death_roll_time_shorten_mult = 1.0f;
 	death_fx_count = 6;
 	shockwave_count = 1;
 	explosion_bitmap_anims.clear();
@@ -3330,6 +3333,10 @@ static void parse_ship_values(ship_info* sip, const bool is_template, const bool
 		stuff_int(&sip->death_roll_base_time);
 		if (sip->death_roll_base_time < 2)
 			sip->death_roll_base_time = 2;
+	}
+
+	if (optional_string("$Death-Roll Hit Time Shorten Multiplier:")) {
+		stuff_float(&sip->death_roll_time_shorten_mult);
 	}
 
 	if(optional_string("$Death-Roll Explosion Radius Mult:")){

@@ -1850,7 +1850,7 @@ static void shiphit_hit_after_death(object *ship_objp, float damage)
 	if (percent_killed > 1.0f)
 		percent_killed = 1.0f;
 
-	delta_time = (int) (4 * sip->death_roll_base_time * percent_killed);
+	delta_time = (int) (4 * sip->death_roll_base_time * percent_killed * sip->death_roll_time_shorten_mult);
 	time_remaining = timestamp_until(shipp->final_death_time);
 
 	//nprintf(("AI", "Gametime = %7.3f, Time until %s dies = %7.3f, delta = %7.3f\n", f2fl(Missiontime), Ships[ship_objp->instance].ship_name, (float)time_remaining/1000.0f, delta_time));
