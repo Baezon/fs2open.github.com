@@ -229,6 +229,18 @@ const float HOMING_DEFAULT_FREE_FLIGHT_FACTOR = 0.25f;
 // most frequently a continuous spawn weapon is allowed to spawn
 static const float MINIMUM_SPAWN_INTERVAL = 0.1f;
 
+//  Flyby sound defaults
+// the angle from the eye vector to the weapon must be at least this by default
+// converted from a dot prod of 0.1 in retail
+static const float DEFAULT_FLYBY_WEP_POS_ANGLE = 1.47f;
+
+// the angle from the eye vector to the weapon's direction must be at most by default
+// converted from a dot prod of -0.8 in retail ( and inverted so 0 is dead ahead instead of PI )
+static const float DEFAULT_FLYBY_WEP_DIR_ANGLE = 0.64f;
+
+// distance where flyby sound will play
+static const float DEFAULT_FLYBY_WEP_DIST = 55.0f;
+
 extern int compute_num_homing_objects(object *target_objp);
 
 void weapon_spew_stats(WeaponSpewType type);
@@ -4840,7 +4852,7 @@ void weapon_maybe_play_flyby_sound(object *weapon_objp, weapon *wp)
 	}
 
 	if ( !(wp->weapon_flags[Weapon::Weapon_Flags::Played_flyby_sound]) ) {
-		float		dist, dot, radius;
+		float		dist, ang, radius;
 
 		if ( (Weapon_info[wp->weapon_info_index].wi_flags[Weapon::Info_Flags::Corkscrew]) ) {
 			dist = vm_vec_dist_quick(&weapon_objp->last_pos, &Eye_position);
@@ -4856,22 +4868,26 @@ void weapon_maybe_play_flyby_sound(object *weapon_objp, weapon *wp)
 
 		if ( (dist > radius) && (dist < 55) ) {
 			vec3d	vec_to_weapon;
+			weapon_info* wip = &Weapon_info[wp->weapon_info_index];
 
 			vm_vec_sub(&vec_to_weapon, &weapon_objp->pos, &Eye_position);
 			vm_vec_normalize(&vec_to_weapon);
 
 			// ensure laser is in front of eye
-			dot = vm_vec_dot(&vec_to_weapon, &Eye_matrix.vec.fvec);
-			if ( dot < 0.1 ) {
+			ang = vm_vec_delta_ang(&vec_to_weapon, &Eye_matrix.vec.fvec, nullptr);
+			if ( ang > wip->flyby_snd_pos_angle )
 				return;
-			}
 
 			// ensure that laser is moving in similar direction to fvec
-			dot = vm_vec_dot(&vec_to_weapon, &weapon_objp->orient.vec.fvec);
+			vec3d weap_dir = weapon_objp->orient.vec.fvec;
+			vm_vec_negate(&weap_dir); 
+			ang = vm_vec_delta_ang(&vec_to_weapon, &weap_dir, nullptr);
 			
-			if ( (dot < -0.80) && (dot > -0.98) ) {
-				if(Weapon_info[wp->weapon_info_index].flyby_snd.isValid()) {
-					snd_play_3d( gamesnd_get_game_sound(Weapon_info[wp->weapon_info_index].flyby_snd), &weapon_objp->pos, &Eye_position );
+			if ( (ang < wip->flyby_snd_dir_angle ) && (ang > 0.2f) ) {
+
+
+				if(wip->flyby_snd.isValid()) {
+					snd_play_3d( gamesnd_get_game_sound(wip->flyby_snd), &weapon_objp->pos, &Eye_position );
 				} else {
 					if ( Weapon_info[wp->weapon_info_index].subtype == WP_LASER ) {
 						snd_play_3d( gamesnd_get_game_sound(GameSounds::WEAPON_FLYBY), &weapon_objp->pos, &Eye_position );
@@ -8174,7 +8190,11 @@ void weapon_info::reset()
 	this->launch_snd = gamesnd_id();
 	this->impact_snd = gamesnd_id();
 	this->disarmed_impact_snd = gamesnd_id();
+
 	this->flyby_snd = gamesnd_id();
+	this->flyby_snd_pos_angle = DEFAULT_FLYBY_WEP_POS_ANGLE;
+	this->flyby_snd_dir_angle = DEFAULT_FLYBY_WEP_DIR_ANGLE;
+	this->flyby_snd_distance = DEFAULT_FLYBY_WEP_DIST;
 
 	this->hud_tracking_snd = gamesnd_id();
 	this->hud_locked_snd = gamesnd_id();

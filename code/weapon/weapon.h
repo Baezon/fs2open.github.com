@@ -377,7 +377,11 @@ struct weapon_info
 	gamesnd_id	launch_snd;
 	gamesnd_id	impact_snd;
 	gamesnd_id disarmed_impact_snd;
-	gamesnd_id	flyby_snd;							//	whizz-by sound, transmitted through weapon's portable atmosphere.
+
+	gamesnd_id	flyby_snd;				//	whizz-by sound, transmitted through weapon's portable atmosphere.
+	float flyby_snd_pos_angle;			// maximum angle of weapon position vs eye vec to play flyby sound
+	float flyby_snd_dir_angle;			// maximum angle of weapon direction vs eye vec to play flyby sound
+	float flyby_snd_distance;			// minimum distance of weapon to play flyby sound
 	
 	gamesnd_id hud_tracking_snd; // Sound played when this weapon tracks a target
 	gamesnd_id hud_locked_snd; // Sound played when this weapon locked onto a target
