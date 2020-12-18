@@ -4078,7 +4078,7 @@ void game_frame(bool paused)
 
 }
 
-#define	MAX_FRAMETIME	(F1_0/4)		// Frametime gets saturated at this.  Changed by MK on 11/1/97.
+#define	MAX_FRAMETIME	(F1_0/30)		// Frametime gets saturated at this.  Changed by MK on 11/1/97.
 												//	Some bug was causing Frametime to always get saturated at 2.0 seconds after the player
 												//	died.  This resulted in screwed up death sequences.
 
@@ -4364,11 +4364,11 @@ int game_poll()
 			game_start_time();
 
 			// If we're in a single player game, pause it.
-			if (!(Game_mode & GM_MULTIPLAYER)){
-				if ((gameseq_get_state() == GS_STATE_GAME_PLAY) && (!popup_active()) && (!popupdead_is_active()))	{
-					game_process_pause_key();
-				}
-			}
+			//if (!(Game_mode & GM_MULTIPLAYER)){
+			//	if ((gameseq_get_state() == GS_STATE_GAME_PLAY) && (!popup_active()) && (!popupdead_is_active()))	{
+			//		game_process_pause_key();
+			//	}
+			//}
 		}
 	}
 

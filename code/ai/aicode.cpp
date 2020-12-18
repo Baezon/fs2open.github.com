@@ -1314,7 +1314,7 @@ void ai_turn_towards_vector(vec3d* dest, object* objp, vec3d* slide_vec, vec3d* 
 
 	//	Should be more general case here.  Currently, anything that is not a weapon will bank when it turns.
 	// Goober5000 - don't bank if sexp or ship says not to
-	if ( (objp->type == OBJ_WEAPON) || (flags & AITTV_IGNORE_BANK ) )
+	if ( (flags & AITTV_IGNORE_BANK ) )
 		delta_bank = 0.0f;
 	else if (objp->type == OBJ_SHIP && Ship_info[Ships[objp->instance].ship_info_index].flags[Ship::Info_Flags::Dont_bank_when_turning])
 		delta_bank = 0.0f;
@@ -12289,6 +12289,8 @@ void ai_maybe_launch_cmeasure(object *objp, ai_info *aip)
 
 	shipp = &Ships[objp->instance];
 	sip = &Ship_info[shipp->ship_info_index];
+
+	return;
 
 	if (!(sip->is_small_ship() || sip->flags[Ship::Info_Flags::Transport]))
 		return;

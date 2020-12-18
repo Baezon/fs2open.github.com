@@ -174,6 +174,7 @@ flag_def_list_new<Weapon::Info_Flags> Weapon_Info_Flags[] = {
     { "die on lost lock",               Weapon::Info_Flags::Die_on_lost_lock,                   true, true  }, //special case
 	{ "no impact spew",					Weapon::Info_Flags::No_impact_spew,						true, false },
 	{ "require exact los",				Weapon::Info_Flags::Require_exact_los,					true, false },
+	{ "true corkscrew",					Weapon::Info_Flags::True_corkscrew,						true, false },
 };
 
 const size_t num_weapon_info_flags = sizeof(Weapon_Info_Flags) / sizeof(flag_def_list_new<Weapon::Info_Flags>);
@@ -648,6 +649,9 @@ void parse_wi_flags(weapon_info *weaponp, flagset<Weapon::Info_Flags> preset_wi_
 
     if (weaponp->wi_flags[Weapon::Info_Flags::In_tech_database])
         weaponp->wi_flags.set(Weapon::Info_Flags::Default_in_tech_database);
+
+	if (weaponp->wi_flags[Weapon::Info_Flags::True_corkscrew])
+		weaponp->wi_flags.set(Weapon::Info_Flags::Corkscrew);
 
     if (weaponp->wi_flags[Weapon::Info_Flags::Flak]) {
         if (weaponp->wi_flags[Weapon::Info_Flags::Swarm] || weaponp->wi_flags[Weapon::Info_Flags::Corkscrew]) {
@@ -4728,15 +4732,16 @@ void weapon_home(object *obj, int num, float frame_time)
 		Assert( obj->phys_info.speed > 0.0f );
 
 		vm_vec_copy_scale( &obj->phys_info.desired_vel, &obj->orient.vec.fvec, obj->phys_info.speed);
-
+		
+		if (wip->wi_flags[Weapon::Info_Flags::True_corkscrew])
+			cscrew_do_true_corkscrew(obj, &target_pos, frame_time);
 		// turn the missile towards the target only if non-swarm.  Homing swarm missiles choose
 		// a different vector to turn towards, this is done in swarm_update_direction().
-		if ( wp->swarm_index < 0 ) {
-			ai_turn_towards_vector(&target_pos, obj, nullptr, nullptr, 0.0f, 0, nullptr);
+		else if ( wp->swarm_index < 0 ) {
+			ai_turn_towards_vector(&target_pos, obj, nullptr, nullptr, 0, 0, nullptr);
+
 			vel = vm_vec_mag(&obj->phys_info.desired_vel);
-
 			vm_vec_copy_scale(&obj->phys_info.desired_vel, &obj->orient.vec.fvec, vel);
-
 		}
 	}
 }
@@ -5038,7 +5043,7 @@ void weapon_process_post(object * obj, float frame_time)
 	}
 
 	// trail missiles
-	if ((wip->wi_flags[Weapon::Info_Flags::Trail]) && !(wip->wi_flags[Weapon::Info_Flags::Corkscrew])) {
+	if ((wip->wi_flags[Weapon::Info_Flags::Trail]) && ((wip->wi_flags[Weapon::Info_Flags::True_corkscrew]) || !(wip->wi_flags[Weapon::Info_Flags::Corkscrew]))) {
 		if ( (wp->trail_ptr != NULL ) && (wp->lssm_stage!=3))	{
 			vec3d pos;
 			

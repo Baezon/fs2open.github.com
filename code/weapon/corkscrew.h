@@ -26,6 +26,9 @@ void  cscrew_process_pre(object *objp);
 // post process the corkscrew weapon by putting him back to the right spot on his corkscrew
 void	cscrew_process_post(object *objp);
 
+// process true corkscrew missiles
+void cscrew_do_true_corkscrew(object* objp, vec3d* target_pos, float frame_time);
+
 // maybe fire another corkscrew-style missile
 void	cscrew_maybe_fire_missile(int shipnum);
 

@@ -397,8 +397,8 @@ void physics_sim(vec3d* position, matrix* orient, physics_info* pi, float sim_ti
 	}
 	else
 	{
-		physics_sim_vel(position, pi, sim_time, orient);
 		physics_sim_rot(orient, pi, sim_time);
+		physics_sim_vel(position, pi, sim_time, orient);
 
 		pi->speed = vm_vec_mag(&pi->vel);							//	Note, cannot use quick version, causes cumulative error, increasing speed.
 		pi->fspeed = vm_vec_dot(&orient->vec.fvec, &pi->vel);		// instead of vector magnitude -- use only forward vector since we are only interested in forward velocity

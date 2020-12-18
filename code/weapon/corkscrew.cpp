@@ -180,6 +180,10 @@ void cscrew_process_pre(object *objp)
 	
 	// check stuff
 	Assert(objp->type == OBJ_WEAPON);	
+
+	if (Weapon_info[Weapons[objp->instance].weapon_info_index].wi_flags[Weapon::Info_Flags::True_corkscrew])
+		return;
+
 	Assert(Weapons[objp->instance].cscrew_index >= 0);
 	Assert(Corkscrew_missiles[Weapons[objp->instance].cscrew_index].flags & CS_FLAG_USED);
 
@@ -206,6 +210,10 @@ void cscrew_process_post(object *objp)
 
 	// check stuff
 	Assert(objp->type == OBJ_WEAPON);	
+
+	if (Weapon_info[Weapons[objp->instance].weapon_info_index].wi_flags[Weapon::Info_Flags::True_corkscrew])
+		return;
+
 	Assert(Weapons[objp->instance].cscrew_index >= 0);
 	Assert(Corkscrew_missiles[Weapons[objp->instance].cscrew_index].flags & CS_FLAG_USED);
 
@@ -254,6 +262,56 @@ void cscrew_process_post(object *objp)
 			trail_set_segment( wp->trail_ptr, &objp->pos );
 		}
 	}	
+}
+
+// No faffing about with fake positions and fake orients (well, just a little bit of a fake orient) 
+// this ACTUALLY makes the missile physically corkscrew through space
+// Basically gives a constantly perturbed orient to ai_turn_towards_vector, making the AI
+// corkscrew itself because it constantly thinks its a little bit off course
+void cscrew_do_true_corkscrew(object* objp, vec3d* target_pos, float frame_time) {
+
+	Assert(objp->type == OBJ_WEAPON);
+	Assert(Weapons[objp->instance].cscrew_index >= 0);
+	Assert(Corkscrew_missiles[Weapons[objp->instance].cscrew_index].flags & CS_FLAG_USED);
+
+	weapon* wp = &Weapons[objp->instance];
+	weapon_info* wip = &Weapon_info[wp->weapon_info_index];
+	cscrew_info* ci = &Corkscrew_missiles[wp->cscrew_index];
+
+	// calculate the the p, b and h values we'll need for the local corkscrew rotation effect
+	static float upness = 10.0f;
+	float bank = ci->flags & CS_FLAG_COUNTER ? -wip->cs_twist : wip->cs_twist;
+	float radius = upness / bank;
+	float pitch = radius * sinf(bank * frame_time);
+	float heading = -radius * (1 - cosf(bank * frame_time));
+
+	// put those into an angles
+	angles cscrew;
+	vm_angvec_make(&cscrew, pitch, bank * frame_time, heading);
+
+	// rotate that into our current orient
+	matrix cscrew_matrix;
+	vm_angles_2_matrix(&cscrew_matrix, &cscrew);
+	matrix combined_orient;
+	vm_matrix_x_matrix(&combined_orient, &objp->orient, &cscrew_matrix);
+
+	// turn as though that were our real orient, so we're always trying to aim ourselves 
+	// a little bit off based on the strength of our corkscrewiness
+	matrix old_orient = objp->orient;
+	objp->orient = combined_orient;
+	ai_turn_towards_vector(target_pos, objp, nullptr, nullptr, 0, 0, nullptr);
+	// put the old orient back
+	objp->orient = old_orient;
+
+	// undo our changes from the output of ai_turn_towards_vector, EXCEPT bank, that's a real change
+	vm_angvec_make(&cscrew, -pitch, 0.0f, -heading);
+	vm_angles_2_matrix(&cscrew_matrix, &cscrew);
+	matrix current_matrix = objp->phys_info.ai_desired_orient;
+	vm_matrix_x_matrix(&objp->phys_info.ai_desired_orient, &current_matrix, &cscrew_matrix);
+
+	// put our velocity on track
+	float vel = vm_vec_mag(&objp->phys_info.desired_vel);
+	vm_vec_copy_scale(&objp->phys_info.desired_vel, &objp->orient.vec.fvec, vel);
 }
 
 // debug console functionality
