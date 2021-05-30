@@ -546,6 +546,14 @@ void parse_ai_profiles_tbl(const char *filename)
 
 				set_flag(profile, "$fixed ship-weapon collisions:", AI::Profile_Flags::Fixed_ship_weapon_collision);
 
+				if (optional_string("$special cruiser attack approach dist:")) {
+					stuff_float(&profile->special_cruiser_attack_dist);
+					if (profile->special_cruiser_attack_dist < 0) {
+						mprintf(("Warning: \"$special cruiser attack approach dist:\" must be positive.\"\n"));
+						profile->special_cruiser_attack_dist = -1.0f;
+					}
+				}
+
 				// if we've been through once already and are at the same place, force a move
 				if (saved_Mp && (saved_Mp == Mp))
 				{
@@ -622,6 +630,7 @@ void ai_profile_t::reset()
     bay_arrive_speed_mult = 0;
     bay_depart_speed_mult = 0;
 	second_order_lead_predict_factor = 0;
+	special_cruiser_attack_dist = -1.0f;
 
     for (int i = 0; i < NUM_SKILL_LEVELS; ++i) {
         max_incoming_asteroids[i] = 0;

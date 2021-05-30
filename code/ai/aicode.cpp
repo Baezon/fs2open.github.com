@@ -566,6 +566,8 @@ void init_ai_class(ai_class *aicp)
     aicp->ai_profile_flags.reset();
     aicp->ai_profile_flags_set.reset();
 
+	aicp->ai_special_cruiser_attack_dist = -1.0f;
+
 	//AI Class autoscale overrides
 	//INT_MIN and FLT_MIN represent the "not set" state
 	for (i = 0; i < NUM_SKILL_LEVELS; i++)
@@ -742,6 +744,15 @@ void parse_ai_class()
 
 	if (optional_string("$Turret Max Aim Update Delay:"))
 		parse_float_list(aicp->ai_turret_max_aim_update_delay, NUM_SKILL_LEVELS);
+
+	if (optional_string("$special cruiser attack approach dist:")) {
+		float temp;
+		stuff_float(&temp);
+		if (temp < 0)
+			mprintf(("Warning: \"$special cruiser attack approach dist:\" must be positive.\"\n"));
+		else
+			aicp->ai_special_cruiser_attack_dist = temp;
+	}
 
 	set_aic_flag(aicp, "$big ships can attack beam turrets on untargeted ships:", AI::Profile_Flags::Big_ships_can_attack_beam_turrets_on_untargeted_ships);
 
@@ -8110,9 +8121,10 @@ void ai_chase_big_approach_set_goal(vec3d *goal_pos, object *attack_objp, object
 	}
 }
 
-void ai_chase_big_circle_set_goal(vec3d *goal_pos, object *attack_objp, object *target_objp, float *accel)
+void ai_chase_big_circle_set_goal(ai_info* aip, vec3d *goal_pos, object *attack_objp, object *target_objp, float *accel)
 {
-	get_tangent_point(goal_pos, attack_objp, &target_objp->pos, attack_objp->radius + target_objp->radius + 100.0f);
+	float orbit_dist = aip->ai_special_cruiser_attack_dist > 0 ? aip->ai_special_cruiser_attack_dist : 100.0f;
+	get_tangent_point(goal_pos, attack_objp, &target_objp->pos, attack_objp->radius + target_objp->radius + orbit_dist);
 
 	*accel = 1.0f;
 }
@@ -8120,7 +8132,7 @@ void ai_chase_big_circle_set_goal(vec3d *goal_pos, object *attack_objp, object *
 /**
  * Get the current and desired horizontal separations between target
  */
-void ai_chase_big_get_separations(object *attack_objp, object *target_objp, vec3d *horz_vec_to_target, float *desired_separation, float *cur_separation)
+void ai_chase_big_get_separations(ai_info* aip, object *attack_objp, object *target_objp, vec3d *horz_vec_to_target, float *desired_separation, float *cur_separation)
 {
 	float temp, r_target, r_attacker;
 	float perp_dist;
@@ -8149,11 +8161,12 @@ void ai_chase_big_get_separations(object *attack_objp, object *target_objp, vec3
 	vm_vec_scale_add(horz_vec_to_target, &vec_to_target, &target_objp->orient.vec.fvec, -perp_dist);
 	*cur_separation = vm_vec_mag_quick(horz_vec_to_target);
 
-	// choose "optimal" separation of 1000 + r_target + r_attacker
-	*desired_separation = 1000 + r_target + r_attacker;
+	// choose "optimal" separation of 1000 (by default) + r_target + r_attacker
+	float sep_dist = aip->ai_special_cruiser_attack_dist > 0 ? aip->ai_special_cruiser_attack_dist : 1000.0f;
+	*desired_separation = sep_dist + r_target + r_attacker;
 }
 
-void ai_chase_big_parallel_set_goal(vec3d *goal_pos, object *attack_objp, object *target_objp, float *accel)
+void ai_chase_big_parallel_set_goal(ai_info* aip, vec3d *goal_pos, object *attack_objp, object *target_objp, float *accel)
 {
 	int opposing;
 	float temp, r_target, r_attacker;
@@ -8176,7 +8189,7 @@ void ai_chase_big_parallel_set_goal(vec3d *goal_pos, object *attack_objp, object
 	// are we opposing (only when other ship is not moving)
 	opposing = ( vm_vec_dot(&attack_objp->orient.vec.fvec, &target_objp->orient.vec.fvec) < 0 );
 
-	ai_chase_big_get_separations(attack_objp, target_objp, &horz_vec_to_target, &optimal_separation, &separation);
+	ai_chase_big_get_separations(aip, attack_objp, target_objp, &horz_vec_to_target, &optimal_separation, &separation);
 
 	// choose dist (2000) so that we don't bash
 	float dist = 2000;
@@ -8215,33 +8228,6 @@ void ai_chase_big_parallel_set_goal(vec3d *goal_pos, object *attack_objp, object
 		*accel = MAX(0.0f, *accel);
 	}
 
-}
-
-//	Return *goal_pos for one cruiser to attack another (big ship).
-//	Choose point fairly nearby that is not occupied by another cruiser.
-void ai_cruiser_chase_set_goal_pos(vec3d *goal_pos, object *pl_objp, object *en_objp)
-{
-	ai_info *aip;
-
-	aip = &Ai_info[Ships[pl_objp->instance].ai_index];
-	float accel;
-
-	switch (aip->submode) {
-	case SM_BIG_APPROACH:
-		// do approach stuff;
-		ai_chase_big_approach_set_goal(goal_pos, pl_objp, en_objp, &accel);
-		break;
-
-	case SM_BIG_CIRCLE:
-		// do circle stuff
-		ai_chase_big_circle_set_goal(goal_pos, pl_objp, en_objp, &accel);
-		break;
-
-	case SM_BIG_PARALLEL:
-		// do parallel stuff
-		ai_chase_big_parallel_set_goal(goal_pos, pl_objp, en_objp, &accel);
-		break;
-	}
 }
 
 int maybe_hack_cruiser_chase_abort()
@@ -8313,13 +8299,13 @@ void ai_cruiser_chase()
 
 		case SM_BIG_CIRCLE:
 			// do circle stuff
-			ai_chase_big_circle_set_goal(&goal_pos, Pl_objp, En_objp, &accel);
+			ai_chase_big_circle_set_goal(aip, &goal_pos, Pl_objp, En_objp, &accel);
 			// maybe set rvec
 			break;
 
 		case SM_BIG_PARALLEL:
 			// do parallel stuff
-			ai_chase_big_parallel_set_goal(&goal_pos, Pl_objp, En_objp, &accel);
+			ai_chase_big_parallel_set_goal(aip, &goal_pos, Pl_objp, En_objp, &accel);
 			//maybe set rvec
 			break;
 		}
@@ -8337,7 +8323,8 @@ void ai_cruiser_chase()
 
 		switch (aip->submode) {
 		case SM_BIG_APPROACH:
-			if ( dist_to_enemy < (Pl_objp->radius + En_objp->radius)*1.25f + 200.0f ) {
+			float attack_dist = aip->ai_special_cruiser_attack_dist > 0 ? aip->ai_special_cruiser_attack_dist : 200.0f;
+			if ( dist_to_enemy < (Pl_objp->radius + En_objp->radius)*1.25f + attack_dist ) {
 				// moving
 				if (moving) {
 					// if within 90 degrees of en forward, go into parallel, otherwise circle
@@ -14865,6 +14852,8 @@ void init_aip_from_class_and_profile(ai_info *aip, ai_class *aicp, ai_profile_t 
 		profile->max_aim_update_delay[Game_skill_level] : aicp->ai_max_aim_update_delay[Game_skill_level];
 	aip->ai_turret_max_aim_update_delay = (aicp->ai_turret_max_aim_update_delay[Game_skill_level] == FLT_MIN) ? 
 		profile->turret_max_aim_update_delay[Game_skill_level] : aicp->ai_turret_max_aim_update_delay[Game_skill_level];
+	aip->ai_special_cruiser_attack_dist = (aicp->ai_special_cruiser_attack_dist < 0.0f) ?
+		profile->special_cruiser_attack_dist : aicp->ai_special_cruiser_attack_dist;
 
 	//Combine AI profile and AI class flags
     aip->ai_profile_flags = profile->flags | (aicp->ai_profile_flags & aicp->ai_profile_flags_set);

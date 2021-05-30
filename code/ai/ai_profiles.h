@@ -108,6 +108,9 @@ public:
 	// How much 0-1 of a second-order lead prediction factor to add to lead indicators. Affects only the HUD indicator, and autoaim.
 	float second_order_lead_predict_factor;
 
+	// Controls how close a cruiser attempts to get when attacking, also makes the value consistent if used
+	float special_cruiser_attack_dist;
+
     void reset();
 };
 
