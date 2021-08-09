@@ -283,7 +283,9 @@ class ParticleSource {
 	void initializeThrusterOffset(weapon* wp, weapon_info* wip);
  public:
 	 
-	std::shared_ptr<void> m_effectData; //!< a pointer to a data record specific to the effect type
+	 typedef union m_effectData { //!< a pointer to a data record specific to the effect type
+		 float spout_spouts[8];
+	 }; 
 
 	ParticleSource();
 

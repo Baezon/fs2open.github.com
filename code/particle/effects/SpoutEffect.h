@@ -164,7 +164,7 @@ public:
 		}
 
 		if (internal::required_string_if_new("+Number:", nocreate)) {
-			m_particleNum = ::util::parseUniformRange<uint>();
+			m_particleNum = ::util::parseUniformRange<uint>(1,8);
 		}
 
 		if (optional_string("+Direction:")) {
