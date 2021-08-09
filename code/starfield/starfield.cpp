@@ -45,6 +45,7 @@ typedef struct {
 	vec3d pos;
 	int vclip;
 	float size;
+	vertex last_pos;
 } motion_debris;
 
 const int MAX_DEBRIS = 300;
@@ -1737,7 +1738,19 @@ void stars_draw_motion_debris()
 		return;
 	}
 
+	auto path = graphics::paths::PathRenderer::instance();
+
+	path->saveState();
+	path->resetState();
+
+	path->beginFrame();
+
 	for (motion_debris &mdebris : Motion_debris) {
+		vertex p1, p2;
+		memset(&p1, 0, sizeof(vertex));
+		memset(&p2, 0, sizeof(vertex));
+		p1 = mdebris.last_pos;
+		vec3d last_pos = mdebris.pos;
 		float vdist = vm_vec_dist(&mdebris.pos, &Eye_position);
 
 		if ((vdist < MIN_DIST_RANGE) || (vdist > MAX_DIST_RANGE)) {
@@ -1754,31 +1767,55 @@ void stars_draw_motion_debris()
 			} else {
 				mdebris.size = size_multiplier * BASE_SIZE;
 			}
+
+			g3_rotate_vertex(&p1, &mdebris.pos);
+			g3_project_vertex(&p1);
+		}
+		bool no_draw1, no_draw2;
+		no_draw1 = false;
+		no_draw2 = false;
+		g3_rotate_vertex(&p2, &mdebris.pos);
+		g3_project_vertex(&p2);
+
+		if (p1.codes || p1.flags & PF_OVERFLOW)
+			no_draw1 = true;
+		if (p2.codes || p2.flags & PF_OVERFLOW)
+			no_draw2 = true;
+
+		vDist vDst;
+		vDst.x = fl2i(p1.screen.xyw.x) - fl2i(p2.screen.xyw.x);
+		vDst.y = fl2i(p1.screen.xyw.y) - fl2i(p2.screen.xyw.y);
+
+		if (((vDst.x * vDst.x) + (vDst.y * vDst.y)) <= 4) {
+			p1.screen.xyw.x = p2.screen.xyw.x + 1.0f;
+			p1.screen.xyw.y = p2.screen.xyw.y;
 		}
 
-		vertex pnt;
-		g3_rotate_vertex(&pnt, &mdebris.pos);
+		ubyte red = (ubyte)150;
+		ubyte green = (ubyte)150;
+		ubyte blue = (ubyte)150;
+		ubyte alpha = (ubyte)50;
 
-		if (pnt.codes == 0) {
-			int frame = Missiontime / (DEBRIS_ROT_MIN + (1 % DEBRIS_ROT_RANGE) * DEBRIS_ROT_RANGE_SCALER);
-			frame %= Debris_vclips[mdebris.vclip].nframes;
+		color col;
+		gr_init_alphacolor(&col, red, green, blue, alpha, AC_TYPE_BLEND);
 
-			float alpha;
+		if (!no_draw1 || !no_draw2) {
+			path->beginPath();
 
-			if ( (The_mission.flags[Mission::Mission_Flags::Fullneb]) && (Neb2_render_mode != NEB2_RENDER_NONE) ) {
-				alpha = 0.3f;
-			} else {
-				alpha = 1.0f;
-			}
+			path->moveTo(p1.screen.xyw.x, p1.screen.xyw.y);
+			path->lineTo(p2.screen.xyw.x, p2.screen.xyw.y);
 
-			// scale alpha from 0 at max range to full at 60% range
-			alpha *= (vdist - MAX_DIST_RANGE) / -(MAX_DIST_RANGE * 0.6f);
-
-			g3_transfer_vertex(&pnt, &mdebris.pos);
-
-			batching_add_bitmap(Debris_vclips[mdebris.vclip].bm + frame, &pnt, 0, mdebris.size, alpha);
+			path->setStrokeColor(&col);
+			path->stroke();
 		}
+
+		g3_rotate_vertex(&mdebris.last_pos, &mdebris.pos);
+		g3_project_vertex(&mdebris.last_pos);
 	}
+
+	path->endFrame();
+
+	path->restoreState();
 
 	if (refresh_motion_debris)
 		refresh_motion_debris = false;
@@ -1819,7 +1856,7 @@ void stars_draw(int show_stars, int show_suns, int  /*show_nebulas*/, int show_s
 	}
 
 	if ( !env && show_stars && (Nmodel_num < 0) && (Game_detail_flags & DETAIL_FLAG_STARS) && !(The_mission.flags[Mission::Mission_Flags::Fullneb]) && (supernova_active() < 3) ) {
-		stars_draw_stars();
+		//stars_draw_stars();
 	}
 
 	last_stars_filled = 1;
