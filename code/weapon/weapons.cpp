@@ -4256,7 +4256,7 @@ void find_homing_object(object *weapon_objp, int num)
 					//	If this is a player object, make sure there aren't already too many homers.
 					//	Only in single player.  In multiplayer, we don't want to restrict it in dogfight on team vs. team.
 					//	For co-op, it's probably also OK.
-					if (!( Game_mode & GM_MULTIPLAYER )) {
+					if (!(Game_mode & GM_MULTIPLAYER) && objp == Player_obj) {
 						int	num_homers = compute_num_homing_objects(objp);
 						if (The_mission.ai_profile->max_allowed_player_homers[Game_skill_level] < num_homers)
 							continue;
@@ -4447,6 +4447,27 @@ bool aspect_should_lose_target(weapon* wp)
 	}
 
 	return false;
+}
+
+void dynamic_path_trace(object* objp, vec3d* target_pos) {
+	vec3d target_dir;
+	vm_vec_normalized_dir(&target_dir, target_pos, &objp->pos);
+	float angle = vm_vec_delta_ang_norm(&target_dir, &objp->orient.vec.fvec, nullptr);
+
+	float time_to_impact = vm_vec_dist(target_pos, &objp->pos) / objp->phys_info.speed;
+	float dist = vm_vec_dist(target_pos, &Weapons[objp->instance].start_pos) / 2000.f;
+
+	float interp_factor = exp((-0.4f / dist) * flFrametime);
+	float delta_ang = angle - angle * interp_factor;
+
+	weapon_info* wip = &Weapon_info[Weapons[objp->instance].weapon_info_index];
+	float max_turn_rate = (PI2 / wip->turn_time) * .128f;
+	if (delta_ang > max_turn_rate * flFrametime)
+		interp_factor = (angle - max_turn_rate * flFrametime ) / angle;
+
+	vm_vec_interp_constant(&objp->phys_info.ai_desired_orient.vec.fvec, &target_dir, &objp->orient.vec.fvec, interp_factor);
+
+	vm_orthogonalize_matrix(&objp->phys_info.ai_desired_orient);
 }
 
 /**
@@ -4857,7 +4878,8 @@ void weapon_home(object *obj, int num, float frame_time)
 		// turn the missile towards the target only if non-swarm.  Homing swarm missiles choose
 		// a different vector to turn towards, this is done in swarm_update_direction().
 		if ( wp->swarm_info_ptr == nullptr ) {
-			ai_turn_towards_vector(&target_pos, obj, nullptr, nullptr, 0.0f, 0, nullptr);
+			dynamic_path_trace(obj, &target_pos);
+			//ai_turn_towards_vector(&target_pos, obj, nullptr, nullptr, 0.0f, 0, nullptr);
 			vel = vm_vec_mag(&obj->phys_info.desired_vel);
 
 			vm_vec_copy_scale(&obj->phys_info.desired_vel, &obj->orient.vec.fvec, vel);
