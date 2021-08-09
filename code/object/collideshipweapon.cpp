@@ -87,6 +87,8 @@ static void ship_weapon_do_hit_stuff(object *pship_obj, object *weapon_obj, vec3
 		damage = wip->damage;
 	}
 
+	damage /= 4.0f;
+
 	// deterine whack whack
 	float		blast = wip->mass;
 	vm_vec_copy_scale(&force, &weapon_obj->phys_info.vel, blast );	
@@ -110,6 +112,18 @@ static void ship_weapon_do_hit_stuff(object *pship_obj, object *weapon_obj, vec3
 	if ( (Ships[pship_obj->instance].wing_status_wing_index >= 0) && ((Ships[pship_obj->instance].wing_status_wing_pos >= 0)) ) {
 		hud_wingman_status_start_flash(shipp->wing_status_wing_index, shipp->wing_status_wing_pos);
 	}
+
+	shipp->arc_pts[7][0] = *hitpos;
+	vec3d move_fwd, rotated_move_fwd;
+	vm_vec_make(&move_fwd, 0, 0, 8.0f);
+	vm_vec_unrotate(&rotated_move_fwd, &move_fwd, &Objects[weapon_obj->parent].orient);
+	vec3d arc_pos, rotated_arc_pos, arc_start;
+	vm_vec_add(&arc_start, &Objects[weapon_obj->parent].pos, &rotated_move_fwd);
+	vm_vec_sub(&arc_pos, &arc_start, &pship_obj->pos);
+	vm_vec_rotate(&rotated_arc_pos, &arc_pos, &pship_obj->orient);
+	shipp->arc_pts[7][1] = rotated_arc_pos;
+	shipp->arc_timestamp[7] = timestamp(50);
+	shipp->arc_type[7] = MARC_TYPE_NORMAL;
 
 	// Apply a wack.  This used to be inside of ship_hit... duh! Ship_hit
 	// is to apply damage, not physics, so I moved it here.

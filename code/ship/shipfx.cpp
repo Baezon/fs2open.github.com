@@ -2064,6 +2064,8 @@ void shipfx_do_damaged_arcs_frame( ship *shipp )
 		damage = 0.0f;
 	}
 
+	return;
+
 	// don't draw an arc based on damage
 	if ( damage > 0.30f )	{
 		// Don't do spark.

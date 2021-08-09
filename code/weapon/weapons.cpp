@@ -5607,12 +5607,21 @@ int weapon_create( vec3d * pos, matrix * porient, int weapon_type, int parent_ob
 		combined_fof = wip->field_of_fire + (fof_cooldown * wip->max_fof_spread);
 	}
 
+	vec3d cheat_vec = orient->vec.fvec;
+	if (parent_objp != nullptr && Ai_info[Ships[parent_objp->instance].ai_index].target_objnum >= 0) {
+		object* target_obj = &Objects[Ai_info[Ships[parent_objp->instance].ai_index].target_objnum];
+		vm_vec_normalized_dir(&cheat_vec, &target_obj->pos, &parent_objp->pos);
+	}
+
+	combined_fof = 0.3f;
+
 	if(combined_fof > 0.0f){
 		vec3d f;
-		vm_vec_random_cone(&f, &orient->vec.fvec, combined_fof);
+		vm_vec_random_cone(&f, &cheat_vec, combined_fof);
 		vm_vec_normalize(&f);
 		vm_vector_2_matrix( orient, &f, NULL, NULL);
 	}
+
 
 	Weapons_created++;
     flagset<Object::Object_Flags> default_flags;
@@ -5825,6 +5834,9 @@ int weapon_create( vec3d * pos, matrix * porient, int weapon_type, int parent_ob
 		if (wip->acceleration_time > 0.0f)
 			wp->launch_speed += pspeed;
 	}
+
+	objp->phys_info.vel *= 100.0f;
+	objp->phys_info.desired_vel *= 100.0f;
 
 	// create the corkscrew
 	if ( wip->wi_flags[Weapon::Info_Flags::Corkscrew] ) {
@@ -7850,7 +7862,7 @@ void weapon_render(object* obj, model_draw_list *scene)
 
 				vm_vec_scale_add(&headp, &obj->pos, &obj->orient.vec.fvec, wip->laser_length);
 
-				batching_add_laser(wip->laser_bitmap.first_frame + framenum, &headp, wip->laser_head_radius, &obj->pos, wip->laser_tail_radius, alpha, alpha, alpha);
+				//batching_add_laser(wip->laser_bitmap.first_frame + framenum, &headp, wip->laser_head_radius, &obj->pos, wip->laser_tail_radius, alpha, alpha, alpha);
 			}			
 
 			// maybe draw laser glow bitmap
@@ -7894,7 +7906,7 @@ void weapon_render(object* obj, model_draw_list *scene)
 					alpha = weapon_glow_alpha;
 				}
 
-				batching_add_laser(wip->laser_glow_bitmap.first_frame + framenum, &headp2, wip->laser_head_radius * weapon_glow_scale_f, &tailp, wip->laser_tail_radius * weapon_glow_scale_r, (c.red*alpha)/255, (c.green*alpha)/255, (c.blue*alpha)/255);
+				//batching_add_laser(wip->laser_glow_bitmap.first_frame + framenum, &headp2, wip->laser_head_radius * weapon_glow_scale_f, &tailp, wip->laser_tail_radius * weapon_glow_scale_r, (c.red*alpha)/255, (c.green*alpha)/255, (c.blue*alpha)/255);
 			}
 
 			break;

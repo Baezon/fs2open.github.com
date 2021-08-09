@@ -9427,6 +9427,12 @@ void ship_process_post(object * obj, float frametime)
 		if (!Framerate_independent_turning)
 			ship_evaluate_ai(obj, frametime);
 	}
+
+	for (int i = 0; i < MAX_SHIP_ARCS; i++) {
+		if (timestamp_elapsed(shipp->arc_timestamp[i])) {
+			shipp->arc_timestamp[i] = 0;
+		}
+	}
 }
 
 
@@ -19441,7 +19447,7 @@ void ship_render(object* obj, model_draw_list* scene)
 	model_clear_instance(sip->model_num);
 
 	// Only render electrical arcs if within 500m of the eye (for a 10m piece)
-	if ( vm_vec_dist_quick( &obj->pos, &Eye_position ) < obj->radius*50.0f && !Rendering_to_shadow_map ) {
+	if ( vm_vec_dist_quick( &obj->pos, &Eye_position ) < obj->radius*500.0f && !Rendering_to_shadow_map ) {
 		for ( int i = 0; i < MAX_SHIP_ARCS; i++ )	{
 			if ( timestamp_valid(shipp->arc_timestamp[i]) ) {
 				model_add_arc(sip->model_num, -1, &shipp->arc_pts[i][0], &shipp->arc_pts[i][1], shipp->arc_type[i]);
