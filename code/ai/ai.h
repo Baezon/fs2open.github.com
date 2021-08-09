@@ -19,6 +19,7 @@
 #include "object/waypoint.h"
 #include "physics/physics.h"
 #include "ship/ship_flags.h"
+#include "weapon/weapon.h"
 
 class ship_weapon;
 class ship_subsys;
@@ -671,5 +672,12 @@ void ai_update_aim(ai_info *aip);
 void do_random_sidethrust(ai_info *aip, ship_info *sip);
 
 void ai_formation_object_recalculate_slotnums(int form_objnum, int exiting_objnum = -1);
+
+//  This function returns if the ship/turret could theoretically have fully locked all available targets
+// given the current time it's been locking on its primary target
+//  If so, it cheats a little bit and assumes that's what it has done, and fills 
+// the relevant missile_locks_firing vector, to be fired at those targets
+// optional turret argument if the firer is a turret
+bool ai_do_multilock(ai_info* aip, weapon_info* wip, ship_subsys* turret = nullptr);
 
 #endif

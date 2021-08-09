@@ -345,7 +345,7 @@ void CJumpNode::Render(model_draw_list* scene, vec3d *pos, vec3d *view_pos)
 
 	int mr_flags = MR_NO_LIGHTING | MR_NO_BATCH;
 	if(!(m_flags & JN_SHOW_POLYS)) {
-		mr_flags |= MR_NO_CULL | MR_NO_POLYS | MR_SHOW_OUTLINE | MR_SHOW_OUTLINE_HTL | MR_NO_TEXTURING;
+		mr_flags |= MR_NO_CULL | MR_NO_POLYS | MR_SHOW_OUTLINE | MR_SHOW_OUTLINE_PRESET | MR_NO_TEXTURING;
 	}
 
 	model_render_params render_info;

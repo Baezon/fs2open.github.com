@@ -2470,6 +2470,9 @@ void ai_fire_from_turret(ship *shipp, ship_subsys *ss, int parent_objnum)
 		int objnum = find_turret_enemy(ss, parent_objnum, &gpos, &gvec, ss->turret_enemy_objnum);
 
 		if (objnum >= 0) {
+			if (objnum != ss->turret_enemy_objnum)
+				ss->turret_last_retargeted_timestamp = timestamp();
+
 			if (ss->turret_enemy_objnum == -1) {
 				ss->turret_enemy_objnum = objnum;
 				ss->targeted_subsys = NULL;		// Turret has retargeted; reset subsystem - Valathil for Mantis #2652

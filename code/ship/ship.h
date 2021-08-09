@@ -360,6 +360,10 @@ public:
 	EModelAnimationPosition	turret_animation_position;
 	int		turret_animation_done_time;
 
+	SCP_vector<std::pair<int, ship_subsys*>> turret_missile_locks_firing;
+	int turret_multilock_check_timestamp;
+	int turret_last_retargeted_timestamp;
+
 	// swarm (rapid fire) info
 	int		turret_swarm_info_index[MAX_TFP];	
 	int		turret_swarm_num;	

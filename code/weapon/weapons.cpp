@@ -8689,12 +8689,12 @@ bool weapon_has_iff_restrictions(weapon_info* wip)
 		});
 }
 
-bool weapon_secondary_world_pos_in_range(object* shooter, weapon_info* wip, vec3d* target_world_pos)
+bool weapon_secondary_world_pos_in_range(vec3d* shootpos, weapon_info* wip, vec3d* target_world_pos)
 {
 	int target_in_range = true;
 
 	vec3d vec_to_target;
-	vm_vec_sub(&vec_to_target, target_world_pos, &shooter->pos);
+	vm_vec_sub(&vec_to_target, target_world_pos, shootpos);
 	float dist_to_target = vm_vec_mag(&vec_to_target);
 
 	float weapon_range;
@@ -8716,7 +8716,7 @@ bool weapon_secondary_world_pos_in_range(object* shooter, weapon_info* wip, vec3
 	return dist_to_target <= weapon_range;
 }
 
-bool weapon_multilock_can_lock_on_subsys(object* shooter, object* target, ship_subsys* target_subsys, weapon_info* wip, float* dot) {
+bool weapon_multilock_can_lock_on_subsys(object* shooter, ship_subsys* turret_shooter, object* target, ship_subsys* target_subsys, weapon_info* wip, float* dot) {
 
 	if (target_subsys->flags[Ship::Subsystem_Flags::Untargetable])
 		return false;
@@ -8724,12 +8724,20 @@ bool weapon_multilock_can_lock_on_subsys(object* shooter, object* target, ship_s
 	vec3d ss_pos;
 	get_subsystem_world_pos(target, target_subsys, &ss_pos);
 
-	if (!weapon_secondary_world_pos_in_range(shooter, wip, &ss_pos))
+	vec3d shootpos, shootvec;
+	if (turret_shooter != nullptr) {
+		ship_get_global_turret_info(shooter, turret_shooter->system_info, &shootpos, &shootvec);
+	} else {
+		shootpos = shooter->pos;
+		shootvec = shooter->orient.vec.fvec;
+	}
+
+	if (!weapon_secondary_world_pos_in_range(&shootpos, wip, &ss_pos))
 		return false;
 
 	vec3d vec_to_target;
-	vm_vec_normalized_dir(&vec_to_target, &ss_pos, &shooter->pos);
-	*dot = vm_vec_dot(&shooter->orient.vec.fvec, &vec_to_target);
+	vm_vec_normalized_dir(&vec_to_target, &ss_pos, &shootpos);
+	*dot = vm_vec_dot(&shootvec, &vec_to_target);
 
 	if (*dot < wip->lock_fov)
 		return false;
@@ -8741,7 +8749,7 @@ bool weapon_multilock_can_lock_on_subsys(object* shooter, object* target, ship_s
 	return ship_subsystem_in_sight(target, target_subsys, &shooter->pos, &gsubpos) == 1;
 }
 
-bool weapon_multilock_can_lock_on_target(object* shooter, object* target_objp, weapon_info* wip, float* dot) {
+bool weapon_multilock_can_lock_on_target(object* shooter, ship_subsys* turret_shooter, object* target_objp, weapon_info* wip, float* dot) {
 	Assertion(shooter->type == OBJ_SHIP, "weapon_multilock_can_lock_on_target called with a non-ship shooter");
 	if (target_objp->type != OBJ_SHIP)
 		return false;
@@ -8764,9 +8772,18 @@ bool weapon_multilock_can_lock_on_target(object* shooter, object* target_objp, w
 	if (!weapon_has_iff_restrictions(wip) && Ships[shooter->instance].team == obj_team(target_objp))
 		return false;
 
+	vec3d shootpos, shootvec;
+	if (turret_shooter != nullptr) {
+		ship_get_global_turret_info(shooter, turret_shooter->system_info, &shootpos, &shootvec);
+	}
+	else {
+		shootpos = shooter->pos;
+		shootvec = shooter->orient.vec.fvec;
+	}
+
 	vec3d vec_to_target;
-	vm_vec_normalized_dir(&vec_to_target, &target_objp->pos, &shooter->pos);
-	*dot = vm_vec_dot(&shooter->orient.vec.fvec, &vec_to_target);
+	vm_vec_normalized_dir(&vec_to_target, &target_objp->pos, &shootpos);
+	*dot = vm_vec_dot(&shootvec, &vec_to_target);
 
 	if (*dot < wip->lock_fov)
 		return false;

@@ -5731,16 +5731,22 @@ void set_primary_weapon_linkage(object *objp)
 
 const int MULTILOCK_CHECK_INTERVAL = 250; // every quarter of a second
 
-//  This function returns if the ship could theoretically have fully locked all available targets
+//  This function returns if the ship/turret could theoretically have fully locked all available targets
 // given the current time it's been locking on its primary target
 //  If so, it cheats a little bit and assumes that's what it has done, and fills 
-// the ai's missile_locks_firing vector, and to be fired at those targets
-bool ai_do_multilock(ai_info* aip, weapon_info* wip) {
+// the relevant missile_locks_firing vector, to be fired at those targets
+// optional turret argument if the firer is a turret
+bool ai_do_multilock(ai_info* aip, weapon_info* wip, ship_subsys* turret) {
 
-	if (!timestamp_elapsed(aip->multilock_check_timestamp))
+	if (!timestamp_elapsed(turret == nullptr ? aip->multilock_check_timestamp : turret->turret_multilock_check_timestamp))
 		return false;
 
-	object* primary_target = &Objects[aip->target_objnum];
+	int tgt_objnum = turret == nullptr ? aip->target_objnum : turret->turret_enemy_objnum;
+	Assertion(tgt_objnum >= 0, "ai_do_multilock() called without a valid primary target!");
+	if (tgt_objnum < 0)
+		return false;
+
+	object* primary_target = &Objects[tgt_objnum];
 
 	struct multilock_target {
 		object* objp;
@@ -5767,11 +5773,12 @@ bool ai_do_multilock(ai_info* aip, weapon_info* wip) {
 				for (ss = GET_FIRST(&sp->subsys_list); ss != END_OF_LIST(&sp->subsys_list); ss = GET_NEXT(ss)) {
 					float dot;
 
-					if (!weapon_multilock_can_lock_on_subsys(Pl_objp, primary_target, ss, wip, &dot))
+					if (!weapon_multilock_can_lock_on_subsys(Pl_objp, turret, primary_target, ss, wip, &dot))
 						continue;
 
+					ship_subsys* targeted_subsys = turret == nullptr ? aip->targeted_subsys : turret->targeted_subsys;
 					// this will guarantee the ship will send always send some missiles at its actual target
-					if (aip->targeted_subsys == ss)
+					if (targeted_subsys == ss)
 						dot = 1.0f;
 
 					multilock_targets.push_back(multilock_target{ primary_target,  ss, dot });
@@ -5788,7 +5795,7 @@ bool ai_do_multilock(ai_info* aip, weapon_info* wip) {
 			ship* target_ship = &Ships[target_objp->instance];
 			float dot;
 
-			if (!weapon_multilock_can_lock_on_target(Pl_objp, target_objp, wip, &dot))
+			if (!weapon_multilock_can_lock_on_target(Pl_objp, turret, target_objp, wip, &dot))
 				continue;
 
 			if (Ship_info[target_ship->ship_info_index].is_big_or_huge()) {
@@ -5797,7 +5804,7 @@ bool ai_do_multilock(ai_info* aip, weapon_info* wip) {
 				ship_subsys* ss;
 				for (ss = GET_FIRST(&target_ship->subsys_list); ss != END_OF_LIST(&target_ship->subsys_list); ss = GET_NEXT(ss)) {
 
-					if (!weapon_multilock_can_lock_on_subsys(Pl_objp, target_objp, ss, wip, &dot))
+					if (!weapon_multilock_can_lock_on_subsys(Pl_objp, turret, target_objp, ss, wip, &dot))
 						continue;
 
 					// this will guarantee the ship will send always send some missiles at its actual target
@@ -5806,10 +5813,9 @@ bool ai_do_multilock(ai_info* aip, weapon_info* wip) {
 
 					multilock_targets.push_back(multilock_target{ target_objp,  ss, dot });
 				}
-			}
-			else {
+			} else {
 				// just a small target, now we check range and fov
-				if (!weapon_secondary_world_pos_in_range(Player_obj, wip, &target_objp->pos))
+				if (!weapon_secondary_world_pos_in_range(&Pl_objp->pos, wip, &target_objp->pos))
 					continue;
 
 				if (dot < wip->lock_fov)
@@ -5837,7 +5843,11 @@ bool ai_do_multilock(ai_info* aip, weapon_info* wip) {
 	// we're fully locked! sort by dot and let them fly!
 	std::sort(multilock_targets.begin(), multilock_targets.end(), [](auto a, auto b) { return a.dot < b.dot; });
 
-	aip->ai_missile_locks_firing.clear();
+	if (turret != nullptr)
+		turret->turret_missile_locks_firing.clear();
+	else
+		aip->ai_missile_locks_firing.clear();
+
 	int missiles = weapon_get_max_missile_seekers(wip);
 	int remaining_seekers_per_target = wip->max_seekers_per_target;
 	for (size_t i = multilock_targets.size() - 1;; i--) {
@@ -5845,7 +5855,12 @@ bool ai_do_multilock(ai_info* aip, weapon_info* wip) {
 
 		lock.first = OBJ_INDEX(multilock_targets.at(i).objp);
 		lock.second = multilock_targets.at(i).subsys;
-		aip->ai_missile_locks_firing.push_back(lock);
+
+		if (turret != nullptr)
+			turret->turret_missile_locks_firing.push_back(lock);
+		else
+			aip->ai_missile_locks_firing.push_back(lock);
+
 		missiles--;
 
 		// out of missiles, we're done

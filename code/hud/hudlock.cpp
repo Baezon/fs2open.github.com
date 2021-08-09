@@ -429,7 +429,7 @@ int hud_lock_target_in_range()
 	ship_weapon* swp = &Player_ship->weapons;
 	weapon_info* wip = &Weapon_info[swp->secondary_bank_weapons[swp->current_secondary_bank]];
 
-	return weapon_secondary_world_pos_in_range(Player_obj, wip, &target_world_pos);
+	return weapon_secondary_world_pos_in_range(&Player_obj->pos, wip, &target_world_pos);
 }
 
 int hud_abort_lock()
@@ -738,7 +738,7 @@ void hud_lock_acquire_current_target(object *target_objp, ship_subsys *target_su
 		// check all the subsystems and the center of the ship
 
 		// assume best lock pos is the center of the ship
-		lock_in_range = weapon_secondary_world_pos_in_range(Player_obj, wip, &target_objp->pos);
+		lock_in_range = weapon_secondary_world_pos_in_range(&Player_obj->pos, wip, &target_objp->pos);
 		vm_vec_normalized_dir(&vec_to_lock, &target_objp->pos, &Player_obj->pos);
 		if ( lock_in_range ) {
 			best_lock_dot=vm_vec_dot(&Player_obj->orient.vec.fvec, &vec_to_lock);
@@ -755,7 +755,7 @@ void hud_lock_acquire_current_target(object *target_objp, ship_subsys *target_su
 			// get world pos of subsystem
 			get_subsystem_world_pos(target_objp, ss, &subsys_world_pos);
 
-			if ( weapon_secondary_world_pos_in_range(Player_obj, wip, &subsys_world_pos) ) {
+			if ( weapon_secondary_world_pos_in_range(&Player_obj->pos, wip, &subsys_world_pos) ) {
 				vm_vec_normalized_dir(&vec_to_lock, &subsys_world_pos, &Player_obj->pos);
 				lock_dot=vm_vec_dot(&Player_obj->orient.vec.fvec, &vec_to_lock);
 				if ( lock_dot > best_lock_dot ) {
@@ -785,7 +785,7 @@ void hud_lock_acquire_uncaged_subsystem(weapon_info *wip, lock_info *lock, float
 	if ( Ship_info[sp->ship_info_index].is_big_or_huge() ) {
 		for (ss = GET_FIRST(&sp->subsys_list); ss != END_OF_LIST(&sp->subsys_list); ss = GET_NEXT(ss) ) {
 
-			if (!weapon_multilock_can_lock_on_subsys(Player_obj, lock->obj, ss, wip, &ss_dot))
+			if (!weapon_multilock_can_lock_on_subsys(Player_obj, nullptr, lock->obj, ss, wip, &ss_dot))
 				continue;
 
 			// check for existing locks
@@ -840,10 +840,10 @@ void hud_lock_acquire_uncaged_target(lock_info *current_lock, weapon_info *wip)
 	for ( A = GET_FIRST(&obj_used_list); A !=END_OF_LIST(&obj_used_list); A = GET_NEXT(A) ) {
 		ship* sp = &Ships[A->instance];
 
-		if (!weapon_multilock_can_lock_on_target(Player_obj, A, wip, &dot))
+		if (!weapon_multilock_can_lock_on_target(Player_obj, nullptr, A, wip, &dot))
 			continue;
 
-		bool in_range = weapon_secondary_world_pos_in_range(Player_obj, wip, &A->pos);
+		bool in_range = weapon_secondary_world_pos_in_range(&Player_obj->pos, wip, &A->pos);
 
 		if ( Ship_info[sp->ship_info_index].is_big_or_huge() ) {
 			lock_info temp_lock;
@@ -930,7 +930,7 @@ void hud_lock_determine_lock_target(lock_info *lock_slot, weapon_info *wip)
 			vm_vec_normalized_dir(&vec_to_target, &target_pos, &Eye_position);
 			dot = vm_vec_dot(&Player_obj->orient.vec.fvec, &vec_to_target);
 
-			if ( !weapon_secondary_world_pos_in_range(Player_obj, wip, &lock_slot->obj->pos) || dot < wip->lock_fov) {
+			if ( !weapon_secondary_world_pos_in_range(&Player_obj->pos, wip, &lock_slot->obj->pos) || dot < wip->lock_fov) {
 				// set this lock slot to empty
 				ship_clear_lock(lock_slot);
 				hud_lock_acquire_uncaged_target(lock_slot, wip);
@@ -1395,7 +1395,7 @@ int hud_lock_target_in_range(lock_info *lock_slot)
 	}
 	ship_weapon* swp = &Player_ship->weapons;
 
-	return weapon_secondary_world_pos_in_range(Player_obj, &Weapon_info[swp->secondary_bank_weapons[swp->current_secondary_bank]], &lock_slot->obj->pos);
+	return weapon_secondary_world_pos_in_range(&Player_obj->pos, &Weapon_info[swp->secondary_bank_weapons[swp->current_secondary_bank]], &lock_slot->obj->pos);
 }
 
 void hud_do_lock_indicators(float frametime)
@@ -2021,7 +2021,7 @@ void hud_lock_get_new_lock_pos(object *target_objp)
 		Player->locking_on_center=1;
 		Player->locking_subsys=NULL;
 		Player->locking_subsys_parent=-1;
-		lock_in_range = weapon_secondary_world_pos_in_range(Player_obj, wip, &lock_world_pos);
+		lock_in_range = weapon_secondary_world_pos_in_range(&Player_obj->pos, wip, &lock_world_pos);
 		vm_vec_normalized_dir(&vec_to_lock, &lock_world_pos, &Player_obj->pos);
 		if ( lock_in_range ) {
 			best_lock_dot=vm_vec_dot(&Player_obj->orient.vec.fvec, &vec_to_lock);
@@ -2038,7 +2038,7 @@ void hud_lock_get_new_lock_pos(object *target_objp)
 			// get world pos of subsystem
 			get_subsystem_world_pos(target_objp, ss, &subsys_world_pos);
 
-			if ( weapon_secondary_world_pos_in_range(Player_obj, wip, &subsys_world_pos) ) {
+			if ( weapon_secondary_world_pos_in_range(&Player_obj->pos, wip, &subsys_world_pos) ) {
 				vm_vec_normalized_dir(&vec_to_lock, &subsys_world_pos, &Player_obj->pos);
 				lock_dot=vm_vec_dot(&Player_obj->orient.vec.fvec, &vec_to_lock);
 				if ( lock_dot > best_lock_dot ) {

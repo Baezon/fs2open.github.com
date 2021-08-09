@@ -6789,6 +6789,9 @@ void ship_subsys::clear()
 	scripting_target_override = false;
 	last_fired_weapon_info_index = -1;
 
+	turret_missile_locks_firing.clear();
+	turret_multilock_check_timestamp = timestamp(0);
+
 	turret_pick_big_attack_point_timestamp = timestamp(0);
 	turret_big_attack_point = vmd_zero_vector;
 
@@ -6962,6 +6965,8 @@ static int subsys_set(int objnum, int ignore_subsys_info)
 		ship_system->turret_pick_big_attack_point_timestamp = timestamp(0);
 		ship_system->scripting_target_override = false;
 		vm_vec_zero(&ship_system->turret_big_attack_point);
+		ship_system->turret_missile_locks_firing.clear();
+		ship_system->turret_multilock_check_timestamp = timestamp(0);
 		for(j = 0; j < NUM_TURRET_ORDER_TYPES; j++)
 		{
 			//WMC - Set targeting order to default.
