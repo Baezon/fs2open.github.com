@@ -8321,9 +8321,9 @@ void ai_cruiser_chase()
 		vm_vec_sub(&vec_to_enemy, &En_objp->pos, &Pl_objp->pos);
 		dist_to_enemy = vm_vec_mag_quick(&vec_to_enemy);
 
+		float attack_dist = aip->ai_special_cruiser_attack_dist > 0 ? aip->ai_special_cruiser_attack_dist : 200.0f;
 		switch (aip->submode) {
 		case SM_BIG_APPROACH:
-			float attack_dist = aip->ai_special_cruiser_attack_dist > 0 ? aip->ai_special_cruiser_attack_dist : 200.0f;
 			if ( dist_to_enemy < (Pl_objp->radius + En_objp->radius)*1.25f + attack_dist ) {
 				// moving
 				if (moving) {
@@ -8352,7 +8352,7 @@ void ai_cruiser_chase()
 					// and we're turning toward the enemy
 					if (vm_vec_dot(&En_objp->orient.vec.fvec, &Pl_objp->orient.vec.fvec) > 0) {
 						// get separation
-						ai_chase_big_get_separations(Pl_objp, En_objp, &temp, &desired_sep, &cur_sep);
+						ai_chase_big_get_separations(aip, Pl_objp, En_objp, &temp, &desired_sep, &cur_sep);
 						// and the separation is > 0.9 desired
 						if (cur_sep > (0.9f * desired_sep)) {
 							aip->submode = SM_BIG_PARALLEL;
@@ -8369,7 +8369,7 @@ void ai_cruiser_chase()
 					// and we're turning toward the enemy
 					if (vm_vec_dot(&En_objp->orient.vec.fvec, &Pl_objp->orient.vec.fvec) > 0) {
 						// get separation
-						ai_chase_big_get_separations(Pl_objp, En_objp, &temp, &desired_sep, &cur_sep);
+						ai_chase_big_get_separations(aip, Pl_objp, En_objp, &temp, &desired_sep, &cur_sep);
 						// and the separation is > 0.9 desired
 						if (cur_sep > (0.9f * desired_sep)) {
 							aip->submode = SM_BIG_PARALLEL;
@@ -8382,7 +8382,7 @@ void ai_cruiser_chase()
 					// and we're turning toward the enemy
 					if (vm_vec_dot(&En_objp->orient.vec.fvec, &Pl_objp->orient.vec.fvec) < 0) {
 						// get separation
-						ai_chase_big_get_separations(Pl_objp, En_objp, &temp, &desired_sep, &cur_sep);
+						ai_chase_big_get_separations(aip, Pl_objp, En_objp, &temp, &desired_sep, &cur_sep);
 						// and the separation is > 0.9 desired
 						if (cur_sep > (0.9f * desired_sep)) {
 							aip->submode = SM_BIG_PARALLEL;
