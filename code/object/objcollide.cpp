@@ -953,50 +953,67 @@ void obj_collide_pair(object *A, object *B)
     }
 }
 
-void obj_find_overlap_colliders(SCP_vector<int> &overlap_list_out, SCP_vector<int> &list, int axis, bool collide)
+void obj_cull_island_colliders(SCP_vector<int>& overlap_list_out, SCP_vector<int>& list, int axis)
+{
+	TRACE_SCOPE(tracing::FindOverlapColliders); // FIX 
+
+	if (list.size() <= 1)
+		return;
+
+	float biggest_max = obj_get_collider_endpoint(list[0], axis, false);
+	size_t maybe_island_idx = 0;
+
+	for (size_t i = 1; i < list.size(); i++) {
+		const float min = obj_get_collider_endpoint(list[i], axis, true);
+
+		if (biggest_max < min) { // there was a gap between the previous obj and this one
+
+			if (maybe_island_idx + 1U == i) { // the last island candidate was the immediately previous one
+				// the previous one mustve been an island and should be skipped
+				maybe_island_idx = i;
+				continue;
+			}
+
+			maybe_island_idx = i;
+		}
+
+		float max = obj_get_collider_endpoint(list[i], axis, false);
+		if (max > biggest_max)
+			biggest_max = max;
+
+		overlap_list_out.push_back(list[i-1]);
+	}
+
+	// make sure to handle last element
+	// if the last element was maybe_island_idx then it should be culled
+	if (maybe_island_idx + 1U != list.size())
+		overlap_list_out.push_back(list[list.size()-1]);
+}
+
+void obj_find_overlap_colliders(SCP_vector<int> &overlap_list_out, SCP_vector<int> &list, int axis)
 {
     TRACE_SCOPE(tracing::FindOverlapColliders);
 
-    bool first_not_added = true;
-    SCP_vector<int> overlappers;
+	if (list.size() <= 1)
+		return;
 
-    for (int in_index : list){
-        bool overlapped = false;
+	SCP_vector<std::pair<size_t, float>> overlappers;
+	overlappers.emplace_back(list[0], obj_get_collider_endpoint(list[0], axis, false));
 
-        const float min = obj_get_collider_endpoint(in_index, axis, true);
+	for (size_t i = 1; i < list.size(); i++) {
+		const float min = obj_get_collider_endpoint(list[i], axis, true);
 
-        for (size_t j = 0; j < overlappers.size(); ) {
-            const float overlap_max = obj_get_collider_endpoint(overlappers[j], axis, false);
-            if ( min <= overlap_max ) {
-                overlapped = true;
-
-                if ( overlappers.size() == 1 && first_not_added ) {
-                    first_not_added = false;
-                    overlap_list_out.push_back(overlappers[j]);
-                }
-
-                if ( collide ) {
-                    obj_collide_pair(&Objects[in_index], &Objects[overlappers[j]]);
-                }
-            } else {
-                overlappers[j] = overlappers.back();
-                overlappers.pop_back();
-                continue;
-            }
-
-            ++j;
-        }
-
-        if ( overlappers.empty() ) {
-            first_not_added = true;
-        }
-
-        if ( overlapped ) {
-            overlap_list_out.push_back(in_index);
-        }
-
-        overlappers.push_back(in_index);
-    }
+		for (size_t j = 0; j < overlappers.size();) {
+			if (overlappers[j].second < min) {
+				overlappers[j] = overlappers.back();
+				overlappers.pop_back();
+				continue; // don't increment j
+			}
+			obj_collide_pair(&Objects[overlappers[j].first], &Objects[list[i]]);
+			j++;
+		}
+		overlappers.emplace_back(list[i], obj_get_collider_endpoint(list[i], axis, false));
+	}
 }
 } //anon namespace
 
@@ -1023,19 +1040,19 @@ void obj_sort_and_collide(SCP_vector<int>* Collision_list)
 		TRACE_SCOPE(tracing::SortColliders);
 		obj_quicksort_colliders(Collision_list, 0, (int)(Collision_list->size() - 1), 0);
 	}
-	obj_find_overlap_colliders(sort_list_y, *Collision_list, 0, false);
+	obj_cull_island_colliders(sort_list_y, *Collision_list, 0);
 
 	sort_list_z.clear();
 	{
 		TRACE_SCOPE(tracing::SortColliders);
 		obj_quicksort_colliders(&sort_list_y, 0, (int)(sort_list_y.size() - 1), 1);
 	}
-	obj_find_overlap_colliders(sort_list_z, sort_list_y, 1, false);
+	obj_cull_island_colliders(sort_list_z, sort_list_y, 1);
 
 	sort_list_y.clear();
 	{
 		TRACE_SCOPE(tracing::SortColliders);
 		obj_quicksort_colliders(&sort_list_z, 0, (int)(sort_list_z.size() - 1), 2);
 	}
-	obj_find_overlap_colliders(sort_list_y, sort_list_z, 2, true);
+	obj_find_overlap_colliders(sort_list_y, sort_list_z, 2);
 }

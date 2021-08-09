@@ -41,6 +41,7 @@ Category LoadBatchingBuffers("Load batching buffers", true);
 Category SortColliders("Sort Colliders", false);
 Category FindOverlapColliders("Find overlap colliders", false);
 Category CollidePair("Collide Pair", false);
+Category MeshCollision("Mesh Collision", false);
 
 Category WeaponPostMove("Weapon post move", false);
 Category ShipPostMove("Ship post move", false);

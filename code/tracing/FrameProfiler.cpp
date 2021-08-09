@@ -189,7 +189,7 @@ void FrameProfiler::get_profile_from_history(SCP_string& name,
 void FrameProfiler::store_profile_in_history(SCP_string& name,
 											 uint64_t time) {
 	float old_ratio;
-	float new_ratio = 0.8f * f2fl(Frametime);
+	float new_ratio = 0.1f * f2fl(Frametime);
 
 	if (new_ratio > 1.0f) {
 		new_ratio = 1.0f;
@@ -256,9 +256,9 @@ void FrameProfiler::dump_output(SCP_stringstream& out,
 		// format the data
 		char avg[64], min[64], max[64], num[64];
 
-		sprintf(avg, "%3.1fms", i2fl(avg_micro_seconds) * 0.000001f);
-		sprintf(min, "%3.1fms", i2fl(min_micro_seconds) * 0.000001f);
-		sprintf(max, "%3.1fms", i2fl(max_micro_seconds) * 0.000001f);
+		sprintf(avg, "%3.3fms", i2fl(avg_micro_seconds) * 0.000001f);
+		sprintf(min, "%3.3fms", i2fl(min_micro_seconds) * 0.000001f);
+		sprintf(max, "%3.3fms", i2fl(max_micro_seconds) * 0.000001f);
 		sprintf(num, "%3d", samples[i].profile_instances);
 
 		SCP_string indented_name;
@@ -266,12 +266,14 @@ void FrameProfiler::dump_output(SCP_stringstream& out,
 		for (uint indent = 0; indent < samples[i].num_parents; indent++) {
 			indented_name += ">";
 		}
-		indented_name += samples[i].name;
+		if (strcmp(samples[i].name.c_str(), "Find overlap colliders") == 0 || strcmp(samples[i].name.c_str(), "Collide Pair") == 0 || strcmp(samples[i].name.c_str(), "Mesh Collision") == 0) {
+			indented_name += samples[i].name;
 
-		char line[256];
-		sprintf_safe(line, "%5s : %5s : %5s : %3s : ", avg, min, max, num);
+			char line[256];
+			sprintf_safe(line, "%5s : %5s : %5s : %3s : ", avg, min, max, num);
 
-		out << line + indented_name + "\n";
+			out << line + indented_name + "\n";
+		}
 	}
 }
 
