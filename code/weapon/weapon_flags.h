@@ -85,6 +85,7 @@ namespace Weapon {
 		Has_display_name,					// Goober5000
 		No_impact_spew,						// Goober5000
 		Require_exact_los,					// If secondary or in turret, will only fire if ship has line of sight to target
+		Use_virtual_lock_indicator,			// Asteroth - AI will use a lock indicator like players for this weapon
 
         NUM_VALUES
 	};

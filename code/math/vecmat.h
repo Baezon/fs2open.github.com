@@ -471,7 +471,7 @@ void vm_quaternion_rotate(matrix *m, float theta, const vec3d *u);
 void vm_matrix_to_rot_axis_and_angle(const matrix *m, float *theta, vec3d *rot_axis);
 
 // interpolate between 2 vectors. t goes from 0.0 to 1.0. at
-void vm_vec_interp_constant(vec3d *out, const vec3d *v1, const vec3d *v2, float t);
+void vm_vec_interp_constant(vec3d *out, const vec3d *v0, const vec3d *v1, float t);
 
 // randomly perturb a vector around a given (normalized vector) or optional orientation matrix
 void vm_vec_random_cone(vec3d *out, const vec3d *in, float max_angle, const matrix *orient = NULL);

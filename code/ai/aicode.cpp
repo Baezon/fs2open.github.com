@@ -6013,6 +6013,7 @@ void ai_select_secondary_weapon(object *objp, ship_weapon *swp, flagset<Weapon::
 	if (swp->current_secondary_bank != initial_bank) {
 		aip->aspect_locked_time = 0.0f;
 		aip->current_target_is_locked = 0;
+		vm_vec_zero(&aip->virtual_lock_indicator);
 	}
 
 	if (swp->current_secondary_bank >= 0 && swp->current_secondary_bank < MAX_SHIP_SECONDARY_BANKS) 
@@ -7794,32 +7795,113 @@ void update_aspect_lock_information(ai_info *aip, vec3d *vec_to_enemy, float dis
 
 	if (num_weapon_types && (wip->is_locked_homing()) && !(shipp->flags[Ship::Ship_Flags::No_secondary_lockon])) {
 		aip->ai_flags.set(AI::AI_Flags::Seek_lock, dist_to_enemy > 300.0f - MIN(enemy_radius, 100.0f));
-
-		//	Update locking information for aspect seeking missiles.
-		aip->current_target_is_locked = 0;
 		dot_to_enemy = vm_vec_dot(vec_to_enemy, &aiobjp->orient.vec.fvec);
 
-		float	needed_dot = 0.9f - 0.5f * enemy_radius/(dist_to_enemy + enemy_radius);	//	Replaced MIN_TRACKABLE_DOT with 0.9f
-		if (dot_to_enemy > needed_dot &&
-			(wip->wi_flags[Weapon::Info_Flags::Homing_aspect] ||
-			(wip->wi_flags[Weapon::Info_Flags::Homing_javelin] &&
-			(tshpp == NULL ||
-			ship_get_closest_subsys_in_sight(tshpp, SUBSYSTEM_ENGINE, &aiobjp->pos))))) {
+		if (aip->ai_profile_flags[AI::Profile_Flags::Use_virtual_lock_indicator] || wip->wi_flags[Weapon::Info_Flags::Use_virtual_lock_indicator]) {
+			float lock_speed = wip->lock_pixels_per_sec / 300.0f;
+
+			if (dot_to_enemy > wip->lock_fov) {
+				vec3d local_v2e;
+				vm_vec_rotate(&local_v2e, vec_to_enemy, &aiobjp->orient);
+
+				if (aip->current_target_is_locked) {
+					aip->virtual_lock_indicator = local_v2e;
+				} else {
+					// ok lets lock on
+					aip->aspect_locked_time += flFrametime;
+
+					if (IS_VEC_NULL(&aip->virtual_lock_indicator)) { // no indicator, generate a new one
+						// put it randomly on a circle at the edge of your lock fov
+						vec3d new_indicator;
+						vm_vec_make(&new_indicator, sqrtf(1 - (wip->lock_fov * wip->lock_fov)), 0, wip->lock_fov);
+
+						angles rot;	matrix rotmat;
+						vm_angvec_make(&rot, 0, frand() * PI2, 0);
+						vm_angles_2_matrix(&rotmat, &rot);
+						vm_vec_rotate(&aip->virtual_lock_indicator, &new_indicator, &rotmat);
+					}
+
+					float lock_dist = vm_vec_delta_ang_norm(&local_v2e, &aip->virtual_lock_indicator, nullptr);
+
+					// cap the approach speed to arrive at min_lock_time
+					if ((lock_dist / lock_speed) < wip->min_lock_time - aip->aspect_locked_time)
+						lock_speed *= (lock_dist / lock_speed) / wip->min_lock_time;
+
+					float lock_progress = (lock_speed * flFrametime) / lock_dist;
+
+					if (lock_progress > 1.0f) {
+						// locked!
+						aip->current_target_is_locked = 1;
+						aip->virtual_lock_indicator = local_v2e;
+					} else {
+						// still locking...
+						vm_vec_interp_constant(&aip->virtual_lock_indicator, &aip->virtual_lock_indicator, &local_v2e, lock_progress);
+					}
+				}
+			} else { // enemy not in lock cone
+				aip->current_target_is_locked = 0;
+
+				if (IS_VEC_NULL(&aip->virtual_lock_indicator)) {
+					aip->aspect_locked_time = 0.0f;
+				} else {
+					float lock_decay_speed = 0.3f; 
+					
+					float unlock_dist = vm_vec_delta_ang_norm(&vmd_z_vector, &aip->virtual_lock_indicator, nullptr);
+
+					float unlock_progress = (lock_decay_speed * flFrametime) / unlock_dist;
+
+					if (unlock_progress > 1.0f) {
+						// lost lock...
+						vm_vec_zero(&aip->virtual_lock_indicator);
+						aip->aspect_locked_time = 0.0f;
+					}
+					else {
+						// losing lock!
+						vm_vec_interp_constant(&aip->virtual_lock_indicator, &aip->virtual_lock_indicator, &vmd_z_vector, unlock_progress);
+						aip->aspect_locked_time *= 1 - unlock_progress;
+					}
+
+				}
+			}
+
+			// REMOVE THIS
+			if (!IS_VEC_NULL(&aip->virtual_lock_indicator)) {
+				vec3d world_lock_indicator;
+				vm_vec_unrotate(&world_lock_indicator, &aip->virtual_lock_indicator, &aiobjp->orient);
+				matrix weapon_orient;
+				vm_vector_2_matrix(&weapon_orient, &world_lock_indicator);
+				weapon_create(&aiobjp->pos, &weapon_orient, weapon_info_lookup("Subach HL-7"), -1);
+			}
+			// REMOVE THIS
+
+		} else { // normal locking method
+
+			//	Update locking information for aspect seeking missiles.
+			aip->current_target_is_locked = 0;
+
+			float	needed_dot = 0.9f - 0.5f * enemy_radius / (dist_to_enemy + enemy_radius);	//	Replaced MIN_TRACKABLE_DOT with 0.9f
+			if (dot_to_enemy > needed_dot &&
+				(wip->wi_flags[Weapon::Info_Flags::Homing_aspect] ||
+					(wip->wi_flags[Weapon::Info_Flags::Homing_javelin] &&
+						(tshpp == NULL ||
+							ship_get_closest_subsys_in_sight(tshpp, SUBSYSTEM_ENGINE, &aiobjp->pos))))) {
 				aip->aspect_locked_time += flFrametime;
 				if (aip->aspect_locked_time >= wip->min_lock_time) {
 					aip->aspect_locked_time = wip->min_lock_time;
 					aip->current_target_is_locked = 1;
 				}
-		} else {
-			aip->aspect_locked_time -= flFrametime*2;
-			if (aip->aspect_locked_time < 0.0f)
-				aip->aspect_locked_time = 0.0f;
+			}
+			else {
+				aip->aspect_locked_time -= flFrametime * 2;
+				if (aip->aspect_locked_time < 0.0f)
+					aip->aspect_locked_time = 0.0f;
+			}
 		}
-	
 	} else {
 		aip->current_target_is_locked = 0;
 		aip->aspect_locked_time = 0.0f; // Used to be this, why?: wip->min_lock_time;
 		aip->ai_flags.remove(AI::AI_Flags::Seek_lock);
+		vm_vec_zero(&aip->virtual_lock_indicator);
 	}
 
 }
@@ -7911,6 +7993,7 @@ void ai_choose_secondary_weapon(object *objp, ai_info *aip, object *en_objp)
 		if (swp->current_secondary_bank != preferred_secondary) {
 			aip->current_target_is_locked = 0;
 			aip->aspect_locked_time = 0.0f;
+			vm_vec_zero(&aip->virtual_lock_indicator);
 			swp->current_secondary_bank = preferred_secondary;
 		}
 		aip->ai_flags.set(AI::AI_Flags::Unload_secondaries);
@@ -8451,6 +8534,7 @@ void ai_chase()
 	} else {
 		aip->current_target_is_locked = 0;
 		aip->ai_flags.remove(AI::AI_Flags::Seek_lock);
+		vm_vec_zero(&aip->virtual_lock_indicator);
 	}
 
 	//	If seeking lock, try to point directly at ship, else predict position so lasers can hit it.
@@ -14649,6 +14733,8 @@ void init_ai_object(int objnum)
 	memset(&aip->ai_override_ci,0,sizeof(control_info));
 
 	aip->form_obj_slotnum = -1;
+
+	vm_vec_zero(&aip->virtual_lock_indicator);
 }
 
 void init_ai_system()

@@ -413,7 +413,8 @@ typedef struct ai_info {
 	ship_subsys*	last_subsys_target;		// last known subsystem target
 	int				targeted_subsys_parent;	//	Parent objnum of subobject, not necessarily targeted
 
-	float		aspect_locked_time;				//	Time towards acquiring lock for current_target
+	float		aspect_locked_time;			  //	Time towards acquiring lock for current_target
+	vec3d       virtual_lock_indicator;       //    local directional vector indicating where its lock indicator is
 
 	// Goober5000
 	int		support_ship_objnum;			// objnum of support ship docking with us, or (if we're a support ship) object we're docking to

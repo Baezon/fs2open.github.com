@@ -529,6 +529,8 @@ void parse_ai_profiles_tbl(const char *filename)
 
 				set_flag(profile, "$better combat collision avoidance for fightercraft:", AI::Profile_Flags::Better_collision_avoidance);
 
+				set_flag(profile, "$use virtual lock indicator:", AI::Profile_Flags::Use_virtual_lock_indicator);
+
 				// if we've been through once already and are at the same place, force a move
 				if (saved_Mp && (saved_Mp == Mp))
 				{
