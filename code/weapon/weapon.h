@@ -71,6 +71,8 @@ extern int Num_weapon_subtypes;
 
 #define MAX_SPAWN_TYPES_PER_WEAPON 5
 
+#define NUM_LIGHTNING_VECS 3
+
 enum class WeaponState : uint32_t
 {
 	INVALID,
@@ -113,6 +115,7 @@ typedef struct weapon {
 	ship_subsys *turret_subsys;			// points to turret that fired weapon, otherwise NULL
 	int		group_id;						// Which group this is in.
 	float	det_range;					//How far from start_pos it blows up
+	vec3d		lightning_ideal_vec;
 
 	// Stuff for thruster glows
 	int		thruster_bitmap;					// What frame the current thruster bitmap is at for this weapon
@@ -416,6 +419,7 @@ struct weapon_info
 	bool launch_reset_locks;				// Lock indicators reset after firing
 
 	HomingAcquisitionType auto_target_method;
+	float lightning_deviation;
 
 	//	Specific to ASPECT homing missiles.
 	int acquire_method;

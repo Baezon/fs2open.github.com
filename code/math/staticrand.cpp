@@ -186,6 +186,16 @@ void static_rand_cone(int num, vec3d* out, const vec3d* const in, float min_angl
 	vm_vec_unrotate(out, &temp, rot); // We find the final vector by rotating temp to the correct orientation
 }
 
+void static_randf_normal(int u1, int u2, float* z0, float* z1) {
+	float fu1 = static_randf(u1);
+	float fu2 = static_randf(u2);
+	float partial_fu1 = sqrtf(-2.0f * log(fu1));
+	if (z0)
+		*z0 = partial_fu1 * cosf(PI2 * fu2);
+	if (z1)
+		*z1 = partial_fu1 * sinf(PI2 * fu2);
+}
+
 
 /////////////////////////////////////////////////////////////////////
 // Alternate random number generator, that doesn't affect rand() sequence

@@ -1573,6 +1573,12 @@ int parse_weapon(int subtype, bool replace, const char *filename)
 		}
 	}
 
+	if (optional_string("$Lightning Strength:")) {
+		float temp;
+		stuff_float(&temp);
+		wip->lightning_deviation = temp;
+	}
+
 	if (optional_string("$Homing Auto-Target Method:"))
 	{
 		char	temp[NAME_LENGTH];
@@ -4657,10 +4663,52 @@ bool aspect_should_lose_target(weapon* wp)
 	return false;
 }
 
+void lighting_trace(object* objp, weapon* wp, weapon_info* wip, vec3d* target_pos) {
+
+	if (!IS_VEC_NULL(target_pos)) {
+		vec3d vec2tgt = *target_pos - (objp->pos + objp->orient.vec.fvec * objp->phys_info.speed * flFrametime);
+		vm_vec_normalize(&vec2tgt);
+		float delta_ang = vm_vec_delta_ang_norm(&vec2tgt, &objp->orient.vec.fvec, nullptr);
+
+		float turn_rate = PI2 / wip->turn_time;
+		if (!Ai_respect_tabled_turntime_rotdamp)
+			turn_rate *= 0.128f;
+
+		if (delta_ang > turn_rate * flFrametime)
+			vm_vec_interp_constant(&wp->lightning_ideal_vec, &wp->lightning_ideal_vec, &vec2tgt, turn_rate * flFrametime / delta_ang);
+		else
+			wp->lightning_ideal_vec = vec2tgt;
+	}
+
+	vec3d lightning_accum = vm_vec_new(0, 0, 0);
+	float dist = vm_vec_dist(&objp->pos, target_pos);
+	for (int i = 0; i < NUM_LIGHTNING_VECS; i++) {
+		vec3d rand;
+		int seed = (Missiontime >> (16 - i * 2)) + objp->signature;
+		float norm1, norm2, norm3;
+		static_randf_normal(seed, ~seed, &norm1, &norm2);
+		static_randf_normal(~seed, seed, &norm2, &norm3);
+
+		float scalar = wip->lightning_deviation * (1 - (1 / ((dist * 0.01) + 1)));
+		rand.xyz.x = norm1 * scalar;// powf(2, i);
+		rand.xyz.y = norm2 * scalar;//powf(2, i);
+		rand.xyz.z = norm3 * scalar;//powf(2, i);
+		lightning_accum += rand;
+	}
+	
+	vec3d new_dir = lightning_accum + wp->lightning_ideal_vec;
+	vm_vec_normalize(&new_dir);
+
+	matrix m;
+	vm_vector_2_matrix(&m, &new_dir);
+
+	objp->phys_info.ai_desired_orient = m;
+}
+
 /**
  * Make weapon num home.  It's also object *obj.
  */
-void weapon_home(object *obj, int num, float frame_time)
+void weapon_find_homing_pos(object *obj, int num, float frame_time)
 {
 	weapon		*wp;
 	weapon_info	*wip;
@@ -5062,15 +5110,8 @@ void weapon_home(object *obj, int num, float frame_time)
 
 		vm_vec_copy_scale( &obj->phys_info.desired_vel, &obj->orient.vec.fvec, obj->phys_info.speed);
 
-		// turn the missile towards the target only if non-swarm.  Homing swarm missiles choose
-		// a different vector to turn towards, this is done in swarm_update_direction().
-		if ( wp->swarm_info_ptr == nullptr ) {
-			ai_turn_towards_vector(&target_pos, obj, nullptr, nullptr, 0.0f, 0, nullptr);
-			vel = vm_vec_mag(&obj->phys_info.desired_vel);
+		vel = 2;
 
-			vm_vec_copy_scale(&obj->phys_info.desired_vel, &obj->orient.vec.fvec, vel);
-
-		}
 	}
 }
 
@@ -5088,7 +5129,20 @@ void weapon_update_missiles(object* obj, float  frame_time) {
 		vec3d pos_hold = wp->homing_pos;
 		int target_hold = wp->target_sig;
 
-		weapon_home(obj, obj->instance, frame_time);
+		weapon_find_homing_pos(obj, obj->instance, frame_time);
+
+		// If this is a swarm type missile,  
+		if (wp->swarm_info_ptr != nullptr) {
+			swarm_update_direction(obj, wp->swarm_info_ptr.get());
+		}
+		else {
+			if (true)
+				lighting_trace(obj, wp, wip, &wp->homing_pos);
+			else if (!IS_VEC_NULL(&wp->homing_pos));
+				//ai_turn_towards_vector(&target_pos, obj, nullptr, nullptr, 0.0f, 0, nullptr);
+
+			vm_vec_copy_scale(&obj->phys_info.desired_vel, &obj->orient.vec.fvec, vm_vec_mag(&obj->phys_info.desired_vel));
+		}
 
 		// tell the server to send an update of the missile.
 		if (MULTIPLAYER_MASTER && !IS_VEC_NULL(&wp->homing_pos)) {
@@ -5101,11 +5155,6 @@ void weapon_update_missiles(object* obj, float  frame_time) {
 					wp->weapon_flags.remove(Weapon::Weapon_Flags::Multi_homing_update_needed);
 				}
 			}
-		}
-
-		// If this is a swarm type missile,  
-		if (wp->swarm_info_ptr != nullptr) {
-			swarm_update_direction(obj, wp->swarm_info_ptr.get());
 		}
 	}
 	else if (wip->acceleration_time > 0.0f) {
@@ -6037,7 +6086,7 @@ int weapon_create( vec3d * pos, matrix * porient, int weapon_type, int parent_ob
 	if ( wip->wi_flags[Weapon::Info_Flags::Swarm] ) {
 		wp->swarm_info_ptr.reset(new swarm_info);
 		swarm_create(objp, wp->swarm_info_ptr.get());
-	} 	
+	}
 
 	// if this is a particle spewing weapon, setup some stuff
 	if (wip->wi_flags[Weapon::Info_Flags::Particle_spew]) {
@@ -6320,6 +6369,8 @@ int weapon_create( vec3d * pos, matrix * porient, int weapon_type, int parent_ob
 	if (wip->ambient_snd.isValid()) {
 		obj_snd_assign(objnum, wip->ambient_snd, &vmd_zero_vector , OS_MAIN);
 	}
+
+	wp->lightning_ideal_vec = objp->orient.vec.fvec;
 
 	if (Script_system.IsActiveAction(CHA_ONWEAPONCREATED)) {
 		Script_system.SetHookObject("Weapon", &Objects[objnum]);
@@ -8558,6 +8609,7 @@ void weapon_info::reset()
 	
 	this->acquire_method = WLOCK_PIXEL;
 	this->auto_target_method = HomingAcquisitionType::CLOSEST;
+	this->lightning_deviation = 0.0f;
 
 	this->min_lock_time = 0.0f;
 	this->lock_pixels_per_sec = 50;
